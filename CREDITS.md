@@ -12,9 +12,15 @@ con ellos. La narrativa describe aportaciones, no cargos.
 
 ### Emmanuel Isaías Guízar Bayardo
 
-*[COMPLETAR: roles CRediT, por ejemplo Conceptualization · Software · Writing – original draft]*
+*Conceptualization · Methodology · Software · Validation · Project administration · Writing– original draft*
 
-[COMPLETAR: qué hizo, en una o dos frases.]
+Concibió WristQuest y su integración con el decodificador de SynapVolit, definió la dirección de estilo y desarrolló el cliente, el puente y sus pruebas.
+
+### Mirsa Buitrón Ramírez
+
+*Visualization*
+
+Diseñó las pantallas y los personajes iniciales del juego a partir de la dirección de estilo de Emmanuel Isaías Guízar Bayardo.
 
 <!-- Por cada persona más: una sección "### Nombres Apellidos", sus roles en
      cursiva y su narrativa. Si además es autora, va en CITATION.cff con el mismo
@@ -30,7 +36,7 @@ con ellos. La narrativa describe aportaciones, no cargos.
      solo en 'references' de CITATION.cff; las bibliotecas y sus versiones ya
      están en pyproject.toml y uv.lock. -->
 
-Ninguno por ahora.
+La tipografía Fredoka (Copyright 2016 The Fredoka Project Authors) se integra tal cual: va incrustada en `web/wristquest.html` bajo la SIL Open Font License 1.1, cuyo texto acompaña al juego en `web/OFL-Fredoka.txt`. Los gráficos del juego se generan por código; el prototipo no incluye imágenes de terceros.
 
 ---
 

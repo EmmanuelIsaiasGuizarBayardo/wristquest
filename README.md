@@ -49,12 +49,12 @@ El código se distribuye bajo la licencia MIT (`LICENSE`).
      Si el proyecto sí guarda datos, reemplaza el párrafo por qué se guarda,
      dónde, por cuánto tiempo y con qué consentimiento. -->
 
-**Señal de personas.** [COMPLETAR: qué se capta y de quién]. Se mantiene en
+**Señal de personas.** Las decisiones del decodificador de SynapVolit (clase de movimiento, intensidad, confianza y coactivación), derivadas de la sEMG del antebrazo de niños con parálisis cerebral espástica unilateral, y la telemetría de desempeño del juego. Se mantiene en
 memoria mientras dura la sesión y no se escribe a disco; ningún componente la
 persiste. Este repositorio no contiene datos personales.
 
 **Marco legal.** Esta declaración es técnica, no un aviso de privacidad. Revisó si
-hace falta uno: [COMPLETAR: quién y cuándo, o "pendiente"].
+hace falta uno: pendiente.
 
 ## Créditos
 
