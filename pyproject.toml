@@ -1,0 +1,34 @@
+[project]
+name = "wristquest"
+version = "0.1.0"
+description = "Videojuego serio de rehabilitación de muñeca controlado por sEMG para niños con PCEU."
+readme = "README.md"
+requires-python = ">=3.12"
+
+# Sin pines de version: uv.lock fija la resolucion exacta.
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "pre-commit",
+    "pyyaml",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wristquest"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
