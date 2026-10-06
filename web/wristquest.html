@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WristQuest: prototipo jugable v0.10</title>
+<title>WristQuest: prototipo jugable v0.11</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
 <style>
 /* Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One). SIL Open Font License 1.1 */
@@ -1202,6 +1202,7 @@ function update(dt) {
   if (hit[K_MUTE]) { AU.muted = !AU.muted; showToast(AU.muted ? 7 : 6); if (AU.master) AU.master.gain.setTargetAtTime(AU.muted ? 0 : 0.5, AU.ac.currentTime, 0.05); }
   musicKeys();
   motorTeclas();
+  oscGestion();
   if (hit[K_L1]) { CFG.level = 1; showToast(0); }
   if (hit[K_L2]) { CFG.level = 2; showToast(1); }
   if (hit[K_POST]) { CFG.posture ^= 1; showToast(CFG.posture ? 3 : 2); }
@@ -1353,7 +1354,7 @@ const HB = 64, HBX = new Float32Array(HB), HBY = new Float32Array(HB), HBW = new
 let hbN = 0, clickA = -1;   // zonas clicables: se registran en cada render (sin alocar) y el clic se resuelve en el update
 function hotspot(x, y, w, h, a) { if (hbN < HB) { HBX[hbN] = x; HBY[hbN] = y; HBW[hbN] = w; HBH[hbN] = h; HBA[hbN++] = a; } }
 function uiClick(lx, ly) { for (let i = hbN - 1; i >= 0; i--) if (lx >= HBX[i] && ly >= HBY[i] && lx <= HBX[i] + HBW[i] && ly <= HBY[i] + HBH[i]) { clickA = HBA[i]; return true; } return false; }
-const A_EXPORT = 121, A_MONITOR = 122, A_CALIB = 120, A_HELP = 1, A_BTN = 10, A_TAB = 20, A_ITEM = 30, A_GO = 50, A_BACK = 51, A_ROW = 60, A_DEC = 80, A_INC = 100;
+const A_EXPORT = 121, A_MONITOR = 122, A_CARPETA = 123, A_CALIB = 120, A_HELP = 1, A_BTN = 10, A_TAB = 20, A_ITEM = 30, A_GO = 50, A_BACK = 51, A_ROW = 60, A_DEC = 80, A_INC = 100;
 let uiSel = 0, uiTab = 0, profile = -1, backTo = SC_MENU, potions = 0;
 const prepSel = new Int8Array(3);
 const MENU_TXT = ['Jugar', 'Estadísticas', 'Configuración'], MENU_COL = ['#d6336c', '#0f8f8a', '#a83fb5'];
@@ -1450,7 +1451,7 @@ function updUI(dt) {
       if (a >= A_BTN && a < A_BTN + 3) uiSel = a - A_BTN;
       if (go || (a >= A_BTN && a < A_BTN + 3)) { sfxOK(); if (uiSel === 0) { setIdx++; goScene(SC_STORY); } else { backTo = SC_RESULTS; goScene(uiSel === 1 ? SC_STATS : SC_CONFIG); } }
       break;
-    case SC_STATS: if (a === A_EXPORT) motorEnviar({ cmd: 'sesion', accion: 'terminar' }); else if (go || esc) goScene(backTo); break;
+    case SC_STATS: if (a === A_EXPORT) motorEnviar({ cmd: 'sesion', accion: 'terminar' }); else if (a === A_CARPETA) motorEnviar({ cmd: 'abrir_carpeta' }); else if (go || esc) goScene(backTo); break;
     case SC_CONFIG:
       if (up) uiSel = (uiSel + 7) % 8; if (dn) uiSel = (uiSel + 1) % 8;
       if (lt || rt) cfgAdjust(uiSel, rt ? 1 : -1);
@@ -1458,11 +1459,11 @@ function updUI(dt) {
       if (a >= A_DEC && a < A_DEC + 8) { uiSel = a - A_DEC; cfgAdjust(uiSel, -1); }
       if (a >= A_INC && a < A_INC + 8) { uiSel = a - A_INC; cfgAdjust(uiSel, 1); }
       if (a === A_CALIB || hit[K_CAL]) goScene(SC_CALIB);
-      else if (a === A_MONITOR || hit[K_MON]) { oscSuscribir(1); goScene(SC_MONITOR); }
+      else if (a === A_MONITOR || hit[K_MON]) goScene(SC_MONITOR);
       else if (go || esc) goScene(backTo);
       break;
     case SC_CALIB: updCalib(a, go, esc); break;
-    case SC_MONITOR: if (hit[K_GO]) oscPausa ^= 1; if (esc) { oscSuscribir(0); goScene(SC_CONFIG); } break;
+    case SC_MONITOR: if (hit[K_GO]) oscPausa ^= 1; if (esc) goScene(SC_CONFIG); break;
   }
 }
 // ---- Render de las escenas de menú ----
@@ -1607,6 +1608,7 @@ function drawStats() {
     }
     if (r && r.final) tag('Exportado en la carpeta ' + r.codigo + ' (CSV seudonimizado)', W / 2, 1040, F_S, '#1f6b2a', C.cream, TH_S);
     else uiButton(px + pw - 760, 870, 400, 80, 'Exportar sesión', '#a8322f', false, A_EXPORT);
+    uiButton(px + pw - 1190, 870, 400, 80, 'Abrir carpeta', '#3b5bdb', false, A_CARPETA);
   }
   uiButton(px + pw - 330, 870, 280, 80, 'Volver', '#0f8f8a', true, A_BACK);
   if (!(MOT.resumen && MOT.resumen.final)) hint(MOT.sesion ? 'El motor registra la sesión ' + MOT.sesion + ' en el disco local    Esc: volver' : 'Datos solo en memoria: se borran al cerrar    Espacio o Esc: volver');
@@ -1680,7 +1682,7 @@ const MOT = {
   calidad: new Int8Array(4).fill(-1), env: new Float32Array(4), envOk: new Uint8Array(4),
   act: new Float32Array(4), actOk: new Uint8Array(4), tNiv: -9,
   cal: { fase: 'inactiva', paso: 0, mov: '', rep: 1, de: 3, prog: 0, resta: 0, msg: '', dur: 0, activa: 0 },
-  res: null, error: '', tError: -9, dec: null, tDec: -9, sesion: null, resumen: null
+  res: null, error: '', tError: -9, dec: null, tDec: -9, sesion: null, resumen: null, perfil: null
 };
 const CAL_IDX = { 'sin evaluar': -1, bueno: 0, dudoso: 1, malo: 2 };
 function motorEnviar(o) { if (MOT.ws && MOT.ws.readyState === 1) { MOT.ws.send(JSON.stringify(o)); return true; } return false; }
@@ -1692,9 +1694,10 @@ function conectarMotor(url, espera) {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     switch (m.tipo) {
       case 'decodificador': window.WQ.feedDecoder(m); MOT.dec = m; MOT.tDec = simT; break;
-      case 'hola': MOT.version = m.version | 0; MOT.fuente = m.fuente || ''; if (scene === SC_MONITOR) oscSuscribir(1); break;
+      case 'hola': MOT.version = m.version | 0; MOT.fuente = m.fuente || ''; oscSus = 0; break;   // conexión nueva: nada suscrito
       case 'osc': oscRecibir(m); break;
       case 'sesion_resumen': MOT.resumen = m; break;
+      case 'perfil': MOT.perfil = m; break;
       case 'estado':
         MOT.fuente = m.fuente || ''; puenteFuente = m.fuente === 'serie' ? 2 : m.fuente === 'simulada' ? 1 : 0;
         MOT.activa = m.activa ? 1 : 0; MOT.calibrado = m.calibrado ? 1 : 0; MOT.errorFuente = m.error_fuente || ''; MOT.sesion = m.sesion || null;
@@ -1802,7 +1805,16 @@ function drawCalib() {
     }
     if (MOT.res.advertencias.length) { g.fillStyle = '#a8322f'; g.fillText('Revisar: ' + MOT.res.advertencias[0], cx0 + 50, 790); }
     g.fillStyle = INK_TXT;
-    g.fillText(MOT.res.exactitud == null ? 'Exactitud: se estima con 3 repeticiones' : 'Exactitud estimada: ' + Math.round(MOT.res.exactitud * 100) + '%', cx0 + 50, 830);
+    const v = MOT.res.verificacion;
+    if (MOT.res.modo === 'verificar' && v) g.fillText('Verificación: exactitud ' + Math.round(v.exactitud * 100) + '%, amplitud ' + v.razon_amplitud.map(r => r.toFixed(1) + '×').join(' '), cx0 + 50, 830);
+    else g.fillText(MOT.res.exactitud == null ? 'Exactitud: se estima con 3 repeticiones' : 'Exactitud estimada: ' + Math.round(MOT.res.exactitud * 100) + '%', cx0 + 50, 830);
+  }
+  if (!c.activa && !MOT.calibrado && MOT.perfil && MOT.sesion) {   // qué sabe el motor de este paciente
+    const p = MOT.perfil;
+    g.font = F_S; g.textAlign = 'center'; g.fillStyle = p.estado === 'incompatible' ? '#a8322f' : '#0f8f8a';
+    g.fillText(p.estado === 'no_existe' ? 'Paciente ' + p.codigo + ' sin perfil: haz la calibración completa'
+      : p.estado === 'incompatible' ? 'Perfil no utilizable: ' + (p.motivo || '')
+      : 'Perfil del ' + (p.fecha || 'paciente') + (p.exactitud != null ? ' (' + Math.round(p.exactitud * 100) + '%)' : '') + ': verifícalo en 20 s', mx, 500);
   }
   if (!c.activa && MOT.calibrado && MOT.dec && simT - MOT.tDec < 0.5) {   // decisión en vivo del LDA
     const d = MOT.dec, nombre = d.clase ? CAL_PASOS[d.clase + 1] : 'Reposo';
@@ -1826,7 +1838,12 @@ function drawCalib() {
   }
   // botones
   if (c.activa) uiButton(W / 2 - 160, 920, 320, 86, 'Cancelar', '#a8322f', true, A_BTN + 2);
-  else {
+  else if (perfilUsable()) {
+    uiButton(W / 2 - 760, 920, 420, 86, 'Verificar (20 s)', '#0f8f8a', true, A_BTN + 3);
+    uiButton(W / 2 - 320, 920, 400, 86, 'Calibrar (3 rep.)', '#a83fb5', false, A_BTN);
+    uiButton(W / 2 + 100, 920, 360, 86, 'Rápida (1 rep.)', '#6a4a36', false, A_BTN + 1);
+    uiButton(W / 2 + 480, 920, 260, 86, 'Volver', '#6a4a36', false, A_BACK);
+  } else {
     uiButton(W / 2 - 600, 920, 420, 86, 'Calibrar (3 rep.)', '#0f8f8a', true, A_BTN);
     uiButton(W / 2 - 160, 920, 420, 86, 'Rápida (1 rep.)', '#a83fb5', false, A_BTN + 1);
     uiButton(W / 2 + 300, 920, 300, 86, 'Volver', '#6a4a36', false, A_BACK);
@@ -1835,9 +1852,12 @@ function drawCalib() {
   else hint(MOT.fuente === 'simulada' ? (MOT.calibrado ? 'FUENTE SIMULADA: usa las flechas para que el paciente simulado se mueva' : 'FUENTE SIMULADA: el motor reproduce sEMG real del movimiento que se pide')
     : MOT.errorFuente ? MOT.errorFuente : 'Espacio: calibrar    Esc: cancelar o volver');
 }
+function perfilUsable() { const p = MOT.perfil; return !!(p && MOT.sesion && p.codigo === MOT.sesion && p.estado !== 'no_existe' && p.estado !== 'incompatible'); }
 function updCalib(a, go, esc) {
   const c = MOT.cal;
-  if (!c.activa && (a === A_BTN || a === A_BTN + 1 || go)) {
+  if (!c.activa && (a === A_BTN + 3 || (go && perfilUsable() && a !== A_BTN && a !== A_BTN + 1))) {
+    if (motorEnviar({ cmd: 'calibrar', modo: 'verificar' })) { MOT.res = null; sfxOK(); }
+  } else if (!c.activa && (a === A_BTN || a === A_BTN + 1 || go)) {
     if (motorEnviar({ cmd: 'calibrar', repeticiones: a === A_BTN + 1 ? 1 : 3 })) { MOT.res = null; sfxOK(); }
   } else if (c.activa && (a === A_BTN + 2 || esc)) motorEnviar({ cmd: 'cancelar' });
   else if (!c.activa && esc) goScene(SC_CONFIG);
@@ -1863,24 +1883,53 @@ function motorEvento(tipo, kind, res) {
 }
 
 // ---- Monitor de señal: osciloscopio de los cuatro canales filtrados ----
-// El motor manda mínimo y máximo por cubeta de 5 ms; cada cubeta es una línea vertical, así la
-// traza conserva sus picos. Un hueco (null) se deja en blanco: nunca se dibuja como cero.
-const OSC_N = 600, OSC_COL = ['#3b5bdb', '#d6336c', '#0f8f8a', '#a83fb5'];
-const oscMin = [], oscMax = [], oscEsc = new Float32Array(4).fill(100);
+// El motor manda mínimo y máximo por cubeta de 10 ms, 10 veces por segundo; cada cubeta es una
+// línea vertical, así la traza conserva sus picos. Entre mensajes el trazo avanza de forma continua
+// (se interpola el desplazamiento), por eso no salta cada 100 ms. Un hueco (null) queda en blanco.
+const OSC_N = 400, OSC_COL = ['#3b5bdb', '#d6336c', '#0f8f8a', '#a83fb5'];
+const oscMin = [], oscMax = [], oscEsc = new Float32Array(4).fill(100), oscPico = new Float32Array(4);
 for (let c = 0; c < 4; c++) { oscMin.push(new Float32Array(OSC_N).fill(NaN)); oscMax.push(new Float32Array(OSC_N).fill(NaN)); }
-let oscW = 0, oscPausa = 0, oscDt = 5;
+let oscW = 0, oscPausa = 0, oscDt = 10, oscT = -9, oscLote = 10, oscSus = 0, oscCuadro = 0;
 function oscRecibir(m) {
   if (oscPausa) return;
-  oscDt = m.dt_ms || 5;
+  oscDt = m.dt_ms || 10;
   const n = m.min[0].length;
   for (let j = 0; j < n; j++) {
     for (let c = 0; c < 4; c++) { const a = m.min[c][j], b = m.max[c][j]; oscMin[c][oscW] = a === null ? NaN : a; oscMax[c][oscW] = b === null ? NaN : b; }
     oscW = (oscW + 1) % OSC_N;
   }
+  oscT = simT; oscLote = n;
 }
-function oscSuscribir(on) { motorEnviar({ cmd: 'osciloscopio', activo: !!on }); }
+function enJuego() { return scene === SC_RUN || scene === SC_LOCK || scene === SC_BREW || scene === SC_GO || scene === SC_BREWGO; }
+function oscGestion() {   // suscripción según la escena: el monitor o el juego con el motor calibrado
+  const quiero = MOT.on && (scene === SC_MONITOR || (enJuego() && MOT.calibrado)) ? 1 : 0;
+  if (quiero !== oscSus && (!MOT.on || motorEnviar({ cmd: 'osciloscopio', activo: !!quiero }))) oscSus = quiero;
+}
+function oscDesfase() {   // cuántas cubetas de avance continuo desde el último mensaje (0 a lote)
+  return oscPausa ? 0 : clamp((simT - oscT) * 1000 / oscDt, 0, oscLote);
+}
+function oscEscalar(c, n) {   // escala automática suave; el máximo se recalcula cada 6 cuadros
+  if (oscCuadro % 6 === 0) {
+    let pico = 0; const mn = oscMin[c], mx = oscMax[c];
+    for (let i = 0; i < n; i++) { const j = (oscW - 1 - i + OSC_N) % OSC_N, v = Math.max(Math.abs(mn[j]), Math.abs(mx[j])); if (v > pico) pico = v; }
+    oscPico[c] = pico;
+  }
+  oscEsc[c] += (Math.max(20, oscPico[c] * 1.15) - oscEsc[c]) * 0.08;
+  return oscEsc[c];
+}
+function oscTrazo(c, x0, w, yc, alto, n, grosor) {   // las últimas n cubetas del canal c, la más nueva a la derecha
+  const g = ctx, mn = oscMin[c], mx = oscMax[c], k = alto / oscEscalar(c, n), dx = w / n, d = oscDesfase() - oscLote;
+  g.strokeStyle = OSC_COL[c]; g.lineWidth = grosor; g.beginPath();
+  for (let i = 0; i < n; i++) {
+    const j = (oscW - n + i + OSC_N) % OSC_N; if (mn[j] !== mn[j]) continue;   // NaN: hueco
+    const x = x0 + (i + d) * dx; if (x < x0) continue;
+    g.moveTo(x, yc - mx[j] * k); g.lineTo(x, yc - mn[j] * k + 0.5);
+  }
+  g.stroke();
+}
 function drawMonitor() {
   const g = ctx, pw = Math.min(1760, W - 80), px = (W - pw) / 2, top = 150, alto = 760;
+  oscCuadro++;
   tag('Monitor de señal', W / 2, 80, F_L, INK_TXT, C.cream, TH_L);
   card(px, top, pw, alto, 40, C.cream);
   if (!MOT.on) {
@@ -1889,18 +1938,9 @@ function drawMonitor() {
   } else {
     const x0 = px + 250, w = pw - 290, lh = (alto - 60) / 4;
     for (let c = 0; c < 4; c++) {
-      const yc = top + 30 + lh * (c + 0.5), mn = oscMin[c], mx = oscMax[c];
-      let pico = 0;   // escala automática suave, sin saltos
-      for (let i = 0; i < OSC_N; i++) { const v = Math.max(Math.abs(mn[i]), Math.abs(mx[i])); if (v > pico) pico = v; }
-      oscEsc[c] += (Math.max(20, pico * 1.15) - oscEsc[c]) * 0.08;
+      const yc = top + 30 + lh * (c + 0.5);
       g.strokeStyle = 'rgba(90,60,40,0.18)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, yc); g.lineTo(x0 + w, yc); g.stroke();
-      g.strokeStyle = OSC_COL[c]; g.lineWidth = 1.6; g.beginPath();
-      const k = (lh * 0.45) / oscEsc[c];
-      for (let i = 0; i < OSC_N; i++) {
-        const j = (oscW + i) % OSC_N; if (mn[j] !== mn[j]) continue;   // NaN: hueco
-        const x = x0 + (i * w) / OSC_N; g.moveTo(x, yc - mx[j] * k); g.lineTo(x, yc - mn[j] * k + 0.5);
-      }
-      g.stroke();
+      oscTrazo(c, x0, w, yc, lh * 0.45, OSC_N, 1.6);
       g.font = F_M; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = OSC_COL[c]; g.fillText(CANAL_TXT[c], px + 30, yc - 26);
       const q = MOT.calidad[c];
       g.font = F_S; g.fillStyle = INK_TXT; g.fillText('±', px + 30, yc + 14); drawNum(px + 52, yc + 14, oscEsc[c], 0, 17); g.fillText('µV', px + 130, yc + 14);
@@ -1913,6 +1953,21 @@ function drawMonitor() {
   }
   const d = MOT.dec && simT - MOT.tDec < 0.5 ? MOT.dec : null;
   hint((d ? 'Decisión: ' + (d.clase ? CAL_PASOS[d.clase + 1] : 'Reposo') + '    ' : '') + 'Espacio: pausar    Esc: volver    Pasa-banda 20-450 Hz, muesca 60 Hz');
+}
+// ---- Durante el juego: la señal del músculo que se pide, y qué ve el motor ----
+const MUSCULO = ['Extensores de muñeca', 'Flexores de muñeca', 'Pronadores', 'Supinadores'];
+function drawSenalJuego() {
+  if (!MOT.on || !MOT.calibrado || !EX.run || EX.kind > KX_LOCK) return;
+  const c = EX.kind === KX_LOCK ? (EX.side > 0 ? 3 : 2) : EX.kind;   // el cofre alterna pronación y supinación
+  const g = ctx, x = 60 + (W - 1280) * 0.1, y = 300, w = 430, h = 150, d = MOT.dec && simT - MOT.tDec < 0.5 ? MOT.dec : null;
+  const acierta = d && d.clase === c + 1;
+  card(x, y, w, h, 28, C.cream);
+  if (acierta) { dropOn(0.4); g.strokeStyle = '#2f9e44'; g.lineWidth = 7; g.beginPath(); rrect(g, x - 5, y - 5, w + 10, h + 10, 32); g.stroke(); dropOff(); }
+  g.font = F_S; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = OSC_COL[c]; g.fillText(MUSCULO[c], x + 22, y + 26);
+  oscCuadro++;
+  oscTrazo(c, x + 20, w - 40, y + 88, 42, 150, 2);   // último 1.5 s
+  g.font = F_S; g.textAlign = 'right'; g.fillStyle = acierta ? '#2f9e44' : '#6a4a36';
+  g.fillText(d ? (d.clase ? CAL_PASOS[d.clase + 1] : 'Reposo') : '...', x + w - 22, y + 26);
 }
 
 // =====================================================================
@@ -2113,6 +2168,7 @@ function drawHUD(mode, marker) {
   const ea = extActive(), real = ea && puenteFuente !== 1;   // nunca presentar lo simulado como real
   tag(ea ? (puenteFuente === 1 ? 'Señal: motor, paciente simulado' : 'Señal: brazalete') : puenteOn ? (MOT.on && !MOT.calibrado ? 'Motor sin calibrar: usando teclado' : 'Motor sin decisión: usando teclado') : 'Señal simulada: teclado',
     60 + (W - 1280) * 0.1 + 215, 268, F_S, real ? '#1f6b2a' : INK_TXT, C.cream, 48);
+  drawSenalJuego();
 }
 // ---- Escenas ----
 // Tarjetas didácticas: tecla grande + gesto de la mano + lo que hace el conejo. Con el decodificador real solo quedan gesto y efecto.
@@ -2331,9 +2387,9 @@ window.WQ = {
     extV[2] = phi0() + clamp((k === 4 ? 1 : k === 3 ? -1 : 0) * CFG.imuTheta * v / CFG.thrOn, -90, 90);   // mismo umbral relativo que el EMG
     decCo = clamp(+m.coactivacion || 0, 0, 1);
   },
-  skins: SKINS, version: '0.10.0',
+  skins: SKINS, version: '0.11.0',
   telemetry: function () { return TEL.buf.slice(0, Math.min(TEL.n, TEL.cap) * TEL.w); },
-  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), dec: MOT.dec, sesion: MOT.sesion, resumen: MOT.resumen, oscW: oscW, env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
+  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), dec: MOT.dec, sesion: MOT.sesion, resumen: MOT.resumen, oscW: oscW, perfil: MOT.perfil, oscSus: oscSus, env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
 };
 let puenteOn = 0, puenteFuente = 0;   // fuente: 0 ninguna, 1 simulada, 2 serie (la versión publicada no tiene red)
 { const q = new URLSearchParams(location.search), u = q.get('motor') || q.get('puente'); if (u) conectarMotor(u, 1); }
