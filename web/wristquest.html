@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WristQuest: prototipo jugable v0.8</title>
+<title>WristQuest: prototipo jugable v0.9</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
 <style>
 /* Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One). SIL Open Font License 1.1 */
@@ -1196,6 +1196,7 @@ function update(dt) {
   if (hit[K_PERF]) perf ^= 1;
   if (hit[K_MUTE]) { AU.muted = !AU.muted; showToast(AU.muted ? 7 : 6); if (AU.master) AU.master.gain.setTargetAtTime(AU.muted ? 0 : 0.5, AU.ac.currentTime, 0.05); }
   musicKeys();
+  motorTeclas();
   if (hit[K_L1]) { CFG.level = 1; showToast(0); }
   if (hit[K_L2]) { CFG.level = 2; showToast(1); }
   if (hit[K_POST]) { CFG.posture ^= 1; showToast(CFG.posture ? 3 : 2); }
@@ -1657,7 +1658,7 @@ const MOT = {
   calidad: new Int8Array(4).fill(-1), env: new Float32Array(4), envOk: new Uint8Array(4),
   act: new Float32Array(4), actOk: new Uint8Array(4), tNiv: -9,
   cal: { fase: 'inactiva', paso: 0, mov: '', rep: 1, de: 3, prog: 0, resta: 0, msg: '', dur: 0, activa: 0 },
-  res: null, error: '', tError: -9
+  res: null, error: '', tError: -9, dec: null, tDec: -9
 };
 const CAL_IDX = { 'sin evaluar': -1, bueno: 0, dudoso: 1, malo: 2 };
 function motorEnviar(o) { if (MOT.ws && MOT.ws.readyState === 1) { MOT.ws.send(JSON.stringify(o)); return true; } return false; }
@@ -1668,7 +1669,7 @@ function conectarMotor(url, espera) {
   ws.onmessage = function (ev) {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     switch (m.tipo) {
-      case 'decodificador': window.WQ.feedDecoder(m); break;
+      case 'decodificador': window.WQ.feedDecoder(m); MOT.dec = m; MOT.tDec = simT; break;
       case 'hola': MOT.version = m.version | 0; MOT.fuente = m.fuente || ''; break;
       case 'estado':
         MOT.fuente = m.fuente || ''; puenteFuente = m.fuente === 'serie' ? 2 : m.fuente === 'simulada' ? 1 : 0;
@@ -1698,6 +1699,14 @@ function conectarMotor(url, espera) {
 }
 // niveles viejos de más de 0.5 s no se dibujan: ausencia explícita también en la interfaz
 function nivelesFrescos() { return MOT.on && simT - MOT.tNiv < 0.5; }
+// Con la fuente simulada, las flechas hacen que el paciente simulado ejecute ese movimiento: el motor
+// reproduce sEMG real y el juego recibe la decisión del LDA, no la tecla. Es la ruta completa sin brazalete.
+let simClase = -1;
+function motorTeclas() {
+  if (!MOT.on || MOT.fuente !== 'simulada' || !MOT.calibrado || MOT.cal.activa) { simClase = -1; return; }
+  const k = keys[K_UP] ? 1 : keys[K_DN] ? 2 : keys[K_LT] ? 3 : keys[K_RT] ? 4 : 0;
+  if (k !== simClase && motorEnviar({ cmd: 'simular', clase: k })) simClase = k;
+}
 
 // ---- Escena de calibración ----
 const CAL_PASOS = ['Contacto', 'Reposo', 'Extensión', 'Flexión', 'Pronación', 'Supinación'];
@@ -1768,6 +1777,13 @@ function drawCalib() {
       drawNum(cx0 + 330, 605 + i * 42, MOT.res.reposo_uv[i], 1, 20); drawNum(cx0 + 500, 605 + i * 42, MOT.res.referencia_uv[i], 1, 20);
     }
     if (MOT.res.advertencias.length) { g.fillStyle = '#a8322f'; g.fillText('Revisar: ' + MOT.res.advertencias[0], cx0 + 50, 790); }
+    g.fillStyle = INK_TXT;
+    g.fillText(MOT.res.exactitud == null ? 'Exactitud: se estima con 3 repeticiones' : 'Exactitud estimada: ' + Math.round(MOT.res.exactitud * 100) + '%', cx0 + 50, 830);
+  }
+  if (!c.activa && MOT.calibrado && MOT.dec && simT - MOT.tDec < 0.5) {   // decisión en vivo del LDA
+    const d = MOT.dec, nombre = d.clase ? CAL_PASOS[d.clase + 1] : 'Reposo';
+    g.font = F_M; g.textAlign = 'center'; g.fillStyle = '#0f8f8a';
+    g.fillText('En vivo: ' + nombre + (d.clase ? '  ' + Math.round(d.intensidad * 100) + '%' : '') + '  (confianza ' + Math.round(d.confianza * 100) + '%)', mx, 500);
   }
   // derecha: los cuatro canales en vivo y su contacto
   const rx = px + pw - 400, frescos = nivelesFrescos();
@@ -1792,7 +1808,7 @@ function drawCalib() {
     uiButton(W / 2 + 300, 920, 300, 86, 'Volver', '#6a4a36', false, A_BACK);
   }
   if (simT - MOT.tError < 4) tag(MOT.error, W / 2, 1040, F_S, '#a8322f', C.cream, TH_S);
-  else hint(MOT.fuente === 'simulada' ? 'FUENTE SIMULADA: el motor reproduce sEMG real del movimiento que se pide'
+  else hint(MOT.fuente === 'simulada' ? (MOT.calibrado ? 'FUENTE SIMULADA: usa las flechas para que el paciente simulado se mueva' : 'FUENTE SIMULADA: el motor reproduce sEMG real del movimiento que se pide')
     : MOT.errorFuente ? MOT.errorFuente : 'Espacio: calibrar    Esc: cancelar o volver');
 }
 function updCalib(a, go, esc) {
@@ -1999,7 +2015,7 @@ function drawHUD(mode, marker) {
   drawHandPanel(60 + (W - 1280) * 0.1, 30, 430, 200, mode);
   const bw = Math.min(860, W - 660); drawBar(W - 150 - bw, 30, bw, 205, v, hp, lit, marker); helpBtn();
   const ea = extActive(), real = ea && puenteFuente !== 1;   // nunca presentar lo simulado como real
-  tag(ea ? (puenteFuente === 1 ? 'Señal: puente simulado' : 'Señal: decodificador') : puenteOn ? 'Puente sin señal: usando teclado' : 'Señal simulada: teclado',
+  tag(ea ? (puenteFuente === 1 ? 'Señal: motor, paciente simulado' : 'Señal: brazalete') : puenteOn ? (MOT.on && !MOT.calibrado ? 'Motor sin calibrar: usando teclado' : 'Motor sin decisión: usando teclado') : 'Señal simulada: teclado',
     60 + (W - 1280) * 0.1 + 215, 268, F_S, real ? '#1f6b2a' : INK_TXT, C.cream, 48);
 }
 // ---- Escenas ----
@@ -2219,9 +2235,9 @@ window.WQ = {
     extV[2] = phi0() + clamp((k === 4 ? 1 : k === 3 ? -1 : 0) * CFG.imuTheta * v / CFG.thrOn, -90, 90);   // mismo umbral relativo que el EMG
     decCo = clamp(+m.coactivacion || 0, 0, 1);
   },
-  skins: SKINS, version: '0.8.0',
+  skins: SKINS, version: '0.9.0',
   telemetry: function () { return TEL.buf.slice(0, Math.min(TEL.n, TEL.cap) * TEL.w); },
-  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
+  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), dec: MOT.dec, env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
 };
 let puenteOn = 0, puenteFuente = 0;   // fuente: 0 ninguna, 1 simulada, 2 serie (la versión publicada no tiene red)
 { const q = new URLSearchParams(location.search), u = q.get('motor') || q.get('puente'); if (u) conectarMotor(u, 1); }
