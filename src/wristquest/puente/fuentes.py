@@ -49,11 +49,11 @@ class FuenteSerie:
         s = self._abierto or serial.serial_for_url(self.puerto, baudrate=self.baudios, timeout=0.2)
         try:
             while True:
-                # readline bloquea hasta el timeout: se corre en un hilo para no detener el bucle de eventos
+                # readline bloquea hasta el timeout: corre en un hilo para no frenar el bucle
                 linea = await asyncio.to_thread(s.readline)
                 if linea.strip():
                     yield linea.strip()
-                # un timeout sin datos no se rellena con nada: el latido del puente reportará la ausencia
+                # un timeout sin datos no se rellena: el latido del puente reporta la ausencia
         finally:
             s.close()
 

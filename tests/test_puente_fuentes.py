@@ -1,6 +1,7 @@
-"""Fuentes sin hardware: la simulada es reproducible y válida; la serie se prueba con loop:// de pyserial."""
+"""Fuentes sin hardware: simulada reproducible y válida; serie probada con loop:// de pyserial."""
 
 import asyncio
+from itertools import pairwise
 
 import pytest
 
@@ -17,7 +18,7 @@ def test_simulada_reproducible():
 def test_simulada_cumple_el_contrato():
     ms = [leer_linea(m.a_linea()) for m in FuenteSimulada(n=600).mensajes()]
     assert {m.clase for m in ms} == set(Clase)  # aparecen las cinco clases
-    assert all(b.t - a.t == pytest.approx(125.0) for a, b in zip(ms, ms[1:]))  # cadencia de 8 Hz
+    assert all(b.t - a.t == pytest.approx(125.0) for a, b in pairwise(ms))  # cadencia de 8 Hz
     assert all(m.intensidad < 0.1 for m in ms if m.clase is Clase.REPOSO)
 
 

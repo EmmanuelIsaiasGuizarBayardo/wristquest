@@ -26,7 +26,7 @@ def test_coactivacion_es_opcional():
         '{"clase":true,"intensidad":0.5,"confianza":0.9,"t":1}',  # bool no es clase
         '{"clase":1,"intensidad":-0.1,"confianza":0.9,"t":1}',
         '{"clase":1,"intensidad":0.5,"confianza":1.2,"t":1}',
-        '{"clase":1,"intensidad":NaN,"confianza":0.9,"t":1}',  # json de Python acepta NaN: se rechaza
+        '{"clase":1,"intensidad":NaN,"confianza":0.9,"t":1}',  # json de Python acepta NaN
         '{"clase":1,"intensidad":0.5,"confianza":0.9}',  # falta t
         '{"clase":1,"intensidad":0.5,"confianza":0.9,"t":1,"coactivacion":2}',
     ],

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WristQuest: prototipo jugable v0.6</title>
+<title>WristQuest: prototipo jugable v0.7</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
 <style>
 /* Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One). SIL Open Font License 1.1 */
@@ -72,9 +72,11 @@ const RUN_SPEED = 330, ACCEL = 900, BRAKE = 1100, GAP = 1050, CHS = 0.8;
 const GRAV = 3400, JUMP_V = 1380, VTERM = 1900;
 const IT_CRYS = 0, IT_MORT = 1, IT_RUNE = 2, IT_WATER = 3, IT_HERO = 4, IT_KEY = 5, IT_CHEST = 6;
 const SP_CHECK = 7, SP_BLOB = 8, SP_BADGE = 9, SP_RICON = 10, SP_GW = 11, SP_GC = 12, SP_GG = 13, SP_GY = 14, SP_GV = 15,
-      SP_SPOT = 16, SP_CAUL = 17, SP_T_INGR = 18, SP_T_GO = 19, SP_T_BREW = 20, SP_T_DONE = 21, SP_T_LOGO = 22, SP_T_TAG = 23, SP_DISC = 24, SP_HELP = 25, SP_STAR = 26, SP_CONF = 27, SP_RJUMP = 30, SP_RCROUCH = 31, SP_RKEY = 32;   // SP_CONF..29: confeti
-const KX_EXT = 0, KX_FLEX = 1, KX_PRON = 2, KX_SUP = 3, KX_LOCK = 4, KX_REST = 9;
-const SC_INTRO = 0, SC_GO = 1, SC_RUN = 2, SC_LOCK = 3, SC_BREWGO = 4, SC_BREW = 5, SC_DONE = 6;
+      SP_SPOT = 16, SP_CAUL = 17, SP_T_INGR = 18, SP_T_GO = 19, SP_T_BREW = 20, SP_T_DONE = 21, SP_T_LOGO = 22, SP_T_TAG = 23, SP_DISC = 24, SP_HELP = 25, SP_STAR = 26, SP_CONF = 27, SP_RJUMP = 30, SP_RCROUCH = 31, SP_RKEY = 32,
+      SP_MUSH = 33, SP_P0 = 34, SP_SKIN0 = 37, SP_CLI0 = 40, SP_LOCKI = 44, SP_T_RES = 45;   // SP_CONF..29: confeti
+const KX_EXT = 0, KX_FLEX = 1, KX_PRON = 2, KX_SUP = 3, KX_LOCK = 4, KX_NOGO = 5, KX_REST = 9;
+const SC_INTRO = 0, SC_GO = 1, SC_RUN = 2, SC_LOCK = 3, SC_BREWGO = 4, SC_BREW = 5, SC_DONE = 6,
+      SC_MENU = 7, SC_LOGIN = 8, SC_PREP = 9, SC_STORY = 10, SC_RESULTS = 11, SC_STATS = 12, SC_CONFIG = 13;   // >= SC_MENU: escenas de menú
 // Fredoka (OFL 1.1) va incrustada en el HTML: el juego funciona sin internet. El resto es respaldo.
 const UIF = "'Fredoka','Nunito','Segoe UI',system-ui,sans-serif";
 const DSP = UIF;
@@ -112,7 +114,7 @@ window.addEventListener('resize', function () { layout(); clearTimeout(bakeTimer
 // =====================================================================
 // 4. ENTRADA: teclado como sEMG/IMU simulados (eventos fuera del loop)
 // =====================================================================
-const K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_SH = 5, K_GO = 6, K_HELP = 7, K_PERF = 8, K_MUTE = 9, K_FREE = 10, K_L1 = 11, K_L2 = 12, K_POST = 13, K_SKIN = 14, K_MUS = 15, K_BIO = 16, K_BIOME = 17;
+const K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_SH = 5, K_GO = 6, K_HELP = 7, K_PERF = 8, K_MUTE = 9, K_FREE = 10, K_L1 = 11, K_L2 = 12, K_POST = 13, K_SKIN = 14, K_MUS = 15, K_BIO = 16, K_BIOME = 17, K_ESC = 18;
 const keys = new Uint8Array(24), hit = new Uint8Array(24);
 function keyId(code) {
   switch (code) {
@@ -120,7 +122,7 @@ function keyId(code) {
     case 'ArrowLeft': case 'KeyA': return K_LT;  case 'ArrowRight': case 'KeyD': return K_RT;
     case 'ShiftLeft': case 'ShiftRight': return K_SH; case 'Space': case 'Enter': return K_GO;
     case 'KeyH': return K_HELP; case 'KeyI': return K_PERF; case 'KeyM': return K_MUTE; case 'KeyL': return K_FREE;
-    case 'Digit1': return K_L1; case 'Digit2': return K_L2; case 'KeyP': return K_POST; case 'KeyK': return K_SKIN; case 'KeyN': return K_MUS; case 'KeyO': return K_BIO; case 'KeyJ': return K_BIOME; default: return 0;
+    case 'Digit1': return K_L1; case 'Digit2': return K_L2; case 'KeyP': return K_POST; case 'KeyK': return K_SKIN; case 'KeyN': return K_MUS; case 'KeyO': return K_BIO; case 'KeyJ': return K_BIOME; case 'Escape': return K_ESC; default: return 0;
   }
 }
 window.addEventListener('keydown', function (e) { const k = keyId(e.code); if (!k) return; e.preventDefault(); if (!e.repeat) hit[k] = 1; keys[k] = 1; audioInit(); });
@@ -128,7 +130,7 @@ window.addEventListener('keyup', function (e) { const k = keyId(e.code); if (k) 
 window.addEventListener('blur', function () { keys.fill(0); });
 cv.addEventListener('pointerdown', function (e) {
   audioInit(); const lx = (e.clientX - offX) / scl, ly = (e.clientY - offY) / scl;
-  if (Math.hypot(lx - (W - 90), ly - 80) < 52) hit[K_HELP] = 1; else hit[K_GO] = 1;
+  if (!uiClick(lx, ly) && scene < SC_MENU && !help) hit[K_GO] = 1;   // las zonas clicables tienen prioridad; en juego, clic = continuar
 });
 
 // =====================================================================
@@ -220,7 +222,7 @@ function updSignals(dt) {
 // =====================================================================
 const EX = { kind: 0, run: 0, started: 0, win: 0, winMax: 5, holdT: 0, wrongT: 0, rt: -1, side: 1, turns: 0, prog: 0 };
 function exBegin(kind) {
-  EX.kind = kind; EX.run = 1; EX.started = 0; EX.win = 0; EX.winMax = CFG.window * (kind === KX_LOCK ? 2 : 1);
+  EX.kind = kind; EX.run = 1; EX.started = 0; EX.win = 0; EX.winMax = CFG.window * (kind === KX_LOCK ? 2 : kind === KX_NOGO ? 0.6 : 1);
   EX.holdT = 0; EX.wrongT = 0; EX.rt = -1; EX.side = 1; EX.turns = 0; EX.prog = 0;
 }
 function imuDir(kind) { return (imu - phi0()) * (kind === KX_SUP ? 1 : -1); }
@@ -237,6 +239,12 @@ function exUpdate(dt) {
     EX.prog = EX.turns / CFG.lockTurns;
     if (EX.turns >= CFG.lockTurns) { EX.run = 0; armed = 0; return 1; }
     if (EX.win >= EX.winMax) { EX.run = 0; armed = 0; return -2; }
+    return 0;
+  }
+  if (EX.kind === KX_NOGO) {   // distractor: el acierto es NO moverse durante la ventana (control inhibitorio)
+    const moved = act[0] || act[1] || Math.abs(imu - phi0()) >= th;
+    if (moved) { if (EX.rt < 0) EX.rt = EX.win; EX.wrongT += dt; if (EX.wrongT >= CFG.hold * 0.5) { EX.run = 0; armed = 0; return -1; } } else EX.wrongT = Math.max(0, EX.wrongT - dt);
+    if (EX.win >= EX.winMax) { EX.run = 0; armed = 0; return 1; }
     return 0;
   }
   if (EX.kind === KX_EXT) { on = act[0]; wrong = act[1]; }
@@ -597,7 +605,7 @@ function drawRabbit(x, y, s, P, flip, grounded, prop) {
 // 10. HORNEADO (init/resize): fondos, capas parallax y sprites a canvas
 // =====================================================================
 let SKY = null, VIG = null, LOCKBG = null, GRAIN = null, barGrad = null, lastSprS = -1, lastBakeS = -1;
-const LAYERS = [], SPR = [], SPW = new Float32Array(40), SPH = new Float32Array(40);
+const LAYERS = [], SPR = [], SPW = new Float32Array(64), SPH = new Float32Array(64);
 function addGrain(g, c) {   // grano de papel solo donde ya hay pintura (source-atop)
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.1;
   g.fillStyle = g.createPattern(GRAIN, 'repeat'); g.fillRect(0, 0, c.width, c.height); g.restore();
@@ -683,7 +691,8 @@ function bakeVignette() {
   const rg = g.createRadialGradient(W / 2, H * 0.55, H * 0.35, W / 2, H * 0.55, Math.max(W, H) * 0.75);
   rg.addColorStop(0, 'rgba(5,8,26,0)'); rg.addColorStop(1, 'rgba(5,8,26,0.6)'); g.fillStyle = rg; g.fillRect(0, 0, W, H); VIG = c;
 }
-const PAPER_K = new Float32Array(40);   // elevación de papel por sprite (0: sin sombra)
+const PAPER_K = new Float32Array(64);
+for (let k = SP_MUSH; k <= SP_LOCKI; k++) PAPER_K[k] = 1;   // elevación de papel por sprite (0: sin sombra)
 PAPER_K[IT_CRYS] = PAPER_K[IT_MORT] = PAPER_K[IT_RUNE] = PAPER_K[IT_WATER] = PAPER_K[IT_HERO] = PAPER_K[IT_KEY] = PAPER_K[IT_CHEST] = 1;
 PAPER_K[SP_CHECK] = 0.6; PAPER_K[SP_CAUL] = 1.5; PAPER_K[SP_DISC] = 0.8; PAPER_K[SP_BADGE] = 0.4;
 PAPER_K[SP_BLOB] = 0.6; PAPER_K[SP_HELP] = 0.8; PAPER_K[SP_STAR] = 0.5; PAPER_K[SP_CONF] = PAPER_K[SP_CONF + 1] = PAPER_K[SP_CONF + 2] = 0.4;
@@ -759,8 +768,8 @@ function bakeLogo() {   // "Wrist" + Q de poción inclinada (el cuello es la col
     g.shadowColor = 'rgba(0,0,0,0)';
     // 2) letras recortadas en degradado del logotipo, con brillo de papel
     const gr = g.createLinearGradient(x0, 0, x0 + tw, 0); gr.addColorStop(0, '#0e92ad'); gr.addColorStop(0.55, '#2fb98a'); gr.addColorStop(1, '#7ad957');
+    g.fillStyle = '#d9fff3'; g.fillText('Wrist', x0 - 4, yb - 5); g.fillText('uest', x0 + wA + qw - 4, yb - 5);   // canto de luz: capa clara debajo, sin trazos que crucen las letras
     g.fillStyle = gr; g.fillText('Wrist', x0, yb); g.fillText('uest', x0 + wA + qw, yb);
-    g.globalAlpha = 0.55; g.lineWidth = size * 0.03; g.strokeStyle = '#ffffff'; g.strokeText('Wrist', x0 - 3, yb - 5); g.strokeText('uest', x0 + wA + qw - 3, yb - 5); g.globalAlpha = 1;
     // 3) la Q: matraz de papel inclinado; el líquido se queda horizontal y llena el cuello, que ahora está abajo
     g.save(); g.translate(qx, qy); g.rotate(ang);
     g.beginPath(); rrect(g, -nw * 0.46, cTop, nw * 0.92, r * 0.78, r * 0.12); piece(C.cork, 0.8);
@@ -789,8 +798,8 @@ function titleSprite(id, str, size, style) {
     } else if (style === 1) {   // degradado teal→verde con contorno crema (logo)
       const gr = g.createLinearGradient(-w / 2, 0, w / 2, 0); gr.addColorStop(0, '#0e92ad'); gr.addColorStop(0.55, '#2fb98a'); gr.addColorStop(1, '#7ad957');
       g.lineJoin = 'round'; g.shadowColor = 'rgba(8,4,20,0.55)'; g.shadowOffsetX = 5 * s; g.shadowOffsetY = 7 * s; g.shadowBlur = 7 * s;
-      g.lineWidth = size * 0.24; g.strokeStyle = C.cream; g.strokeText(str, 0, 0); g.shadowColor = 'rgba(0,0,0,0)'; g.fillStyle = gr; g.fillText(str, 0, 0);
-      g.globalAlpha = 0.5; g.lineWidth = size * 0.035; g.strokeStyle = '#ffffff'; g.strokeText(str, -size * 0.02, -size * 0.03); g.globalAlpha = 1;
+      g.lineWidth = size * 0.24; g.strokeStyle = C.cream; g.strokeText(str, 0, 0); g.shadowColor = 'rgba(0,0,0,0)';
+      g.fillStyle = '#d9fff3'; g.fillText(str, -size * 0.022, -size * 0.03); g.fillStyle = gr; g.fillText(str, 0, 0);   // canto de luz sin trazos internos
     } else { g.font = '700 ' + size + 'px ' + DSP; g.fillStyle = '#3b1240'; g.fillText(str, 0, 0); }
   });
   addGrain(SPR[id].getContext('2d'), SPR[id]);
@@ -861,7 +870,7 @@ function bakeSprites() {
     g.fillStyle = '#1d3b12'; g.beginPath(); g.arc(-8, -2, 3, 0, TAU); g.moveTo(11, -2); g.arc(8, -2, 3, 0, TAU); g.fill();
     g.strokeStyle = '#1d3b12'; g.lineWidth = 2.5; g.beginPath(); g.arc(0, 2, 6, 0.3, Math.PI - 0.3); g.stroke();
   });
-  makeSprite(SP_BADGE, 70, 70, 1, g => { g.beginPath(); g.arc(0, 0, 30, 0, TAU); piece('#1a9e98', 0.6); g.beginPath(); g.ellipse(-9, -11, 10, 5, -0.6, 0, TAU); piece('#5fd3c4', 0.2); });
+  makeSprite(SP_BADGE, 70, 70, 1, g => { g.beginPath(); g.arc(0, 0, 30, 0, TAU); const gr = g.createLinearGradient(-30, -30, 30, 30); gr.addColorStop(0, '#0e92ad'); gr.addColorStop(1, '#4fbf6a'); piece(gr, 0.6); });   // degradado limpio: el número se lee mejor
   bakeRIcon();
   glowSprite(SP_GW, 'rgba(255,255,255,1)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0)');
   glowSprite(SP_GC, 'rgba(190,250,255,1)', 'rgba(67,230,255,0.35)', 'rgba(67,230,255,0)');
@@ -902,7 +911,23 @@ function bakeSprites() {
 
   titleSprite(SP_T_INGR, 'Ingredientes', 76, 1); titleSprite(SP_T_GO, '¡Comienza!', 150, 0);
   titleSprite(SP_T_BREW, '¡Prepara la poción!', 125, 0); titleSprite(SP_T_DONE, '¡Poción conseguida!', 125, 0);
-  bakeLogo(); titleSprite(SP_T_TAG, 'Ingrediente', 42, 2);
+  bakeLogo(); titleSprite(SP_T_TAG, 'Ingrediente', 42, 2); titleSprite(SP_T_RES, 'Tus resultados', 96, 1);
+  makeSprite(SP_MUSH, 190, 190, 1, g => {   // hongo distractor (nivel Difícil): no forma parte de ninguna receta
+    g.beginPath(); rrect(g, -22, -8, 44, 72, 18); piece('#f3e3cf', 0.8);
+    g.beginPath(); g.moveTo(-74, 2); g.bezierCurveTo(-74, -84, 74, -84, 74, 2); g.quadraticCurveTo(0, 16, -74, 2); piece('#d23a3a', 1.2);
+    for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(-44 + i * 28, -30 - (i % 2) * 18, 10, 7, 0, 0, TAU); piece('#fff3e0', 0.3); }
+  });
+  const PC = [['#8a3fd1', '#c58cf2', '#ffd36e'], ['#2c8fd6', '#7cc8f5', '#c8fbff'], ['#e2508f', '#f7a1c4', '#ffe08a']];
+  for (let k = 0; k < 3; k++) makeSprite(SP_P0 + k, 190, 220, 1, g => flask(g, 0, 30, 54, PC[k][0], PC[k][1], PC[k][2]));   // pociones del menú
+  for (let k = 0; k < 3; k++) { SK = SKINS[k]; makeSprite(SP_SKIN0 + k, 120, 120, 1, g => { poseTarget(Pi, S_RUN, 0, 0, 1.1, 0); Pi[FLA] = 0.3; const pb = BF; BF = 0; PSH = sprS * 0.25; drawRabbit(4, 58, 0.25, Pi, 1, 1, 1); BF = pb; }); }
+  SK = SKINS[skinIdx];
+  clientBust(SP_CLI0, '#d9534f', '#a8322f', '#f2a43a', 0); clientBust(SP_CLI0 + 1, '#e58a3a', '#b8641f', '#7ad957', 1);
+  clientBust(SP_CLI0 + 2, '#6aa84f', '#43792f', '#d9534f', 1); clientBust(SP_CLI0 + 3, '#9a6b45', '#6e4a2c', '#6f9ad6', 2);
+  makeSprite(SP_LOCKI, 120, 150, 1, g => {   // candado de cartulina para lo bloqueado
+    g.strokeStyle = C.cream; g.lineWidth = 15; shOn(g, 0.6); g.beginPath(); g.arc(0, -18, 30, Math.PI, TAU); g.stroke(); shOff(g);
+    g.beginPath(); rrect(g, -46, -20, 92, 82, 16); piece(C.cream, 1);
+    g.fillStyle = '#2b2440'; g.beginPath(); g.arc(0, 12, 10, 0, TAU); g.fill(); g.fillRect(-4, 14, 8, 26);
+  });
 }
 function chainLine(g, x0, y0, x1, y1) {   // eslabones de cartulina: cada uno proyecta sombra sobre el anterior
   const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), a = Math.atan2(dy, dx), n = L / 58 | 0;
@@ -949,6 +974,18 @@ function bakeRIcon() {   // mini conejo de la barra de biofeedback: mismo rig y 
   });
   poseIcon(SP_RJUMP, S_JUMP, 0, 0); poseIcon(SP_RCROUCH, S_CROUCH, 1, 1); poseIcon(SP_RKEY, S_KEY, 0, 1);   // íconos de las tarjetas didácticas
 }
+function clientBust(id, col, dk, scarf, ears) {   // MARCADOR de cliente (busto de papel): el arte definitivo de cada cliente queda pendiente
+  makeSprite(id, 300, 360, 1, g => {
+    g.beginPath(); rrect(g, -112, 40, 224, 150, 60); piece(dk, 1);
+    if (ears === 0) { g.beginPath(); g.arc(-64, -96, 28, 0, TAU); piece(col, 0.8); g.beginPath(); g.arc(64, -96, 28, 0, TAU); piece(col, 0.8); }
+    else for (let k = -1; k <= 1; k += 2) { g.beginPath(); g.moveTo(k * 40, -104); g.lineTo(k * 80, -150 + (ears === 2 ? 20 : 0)); g.lineTo(k * 86, -76); g.closePath(); piece(col, 0.8); }
+    g.beginPath(); g.ellipse(0, -40, 94, 86, 0, 0, TAU); piece(col, 1.2);
+    g.beginPath(); g.moveTo(-84, 34); g.quadraticCurveTo(0, 86, 84, 34); g.lineTo(70, 66); g.quadraticCurveTo(0, 108, -70, 66); g.closePath(); piece(scarf, 0.9);
+    g.beginPath(); g.ellipse(0, -6, ears === 2 ? 22 : 40, ears === 2 ? 26 : 30, 0, 0, TAU); piece(ears === 2 ? '#f2b632' : '#f6e2c9', 0.6);
+    for (let k = -1; k <= 1; k += 2) { g.fillStyle = ears === 2 ? '#fff3e0' : C.ink; g.beginPath(); g.arc(k * 32, -54, ears === 2 ? 22 : 8, 0, TAU); g.fill(); if (ears === 2) { g.fillStyle = C.ink; g.beginPath(); g.arc(k * 32, -54, 9, 0, TAU); g.fill(); } }
+    if (ears !== 2) { g.fillStyle = C.ink; g.beginPath(); g.ellipse(0, -22, 12, 8, 0, 0, TAU); g.fill(); }
+  });
+}
 function poseIcon(id, st, h, grounded) {
   makeSprite(id, 150, 170, 1, g => {
     poseTarget(Pi, st, 0.2, h, 0, st === S_CROUCH ? -1 : 1); Pi[FLA] = 0.3; const pb = BF; BF = 0; PSH = sprS * 0.3;
@@ -973,9 +1010,9 @@ function bakeAll() {
 // =====================================================================
 // 11. LÓGICA DE JUEGO: estaciones, escenas, cofre, caldero, modo libre
 // =====================================================================
-const T_HIGH = 0, T_LOW = 1, T_KEY = 2, T_CHEST = 3, ST_MAX = 24;
+const T_HIGH = 0, T_LOW = 1, T_KEY = 2, T_CHEST = 3, T_NOGO = 4, ST_MAX = 24;
 const stType = new Uint8Array(ST_MAX), stItem = new Uint8Array(ST_MAX), stS = new Uint8Array(ST_MAX), stRetry = new Uint8Array(ST_MAX);
-const stX = new Float32Array(ST_MAX), stT = new Float32Array(ST_MAX), STOP_OFF = new Float32Array([30, 215, 30, 235]);
+const stX = new Float32Array(ST_MAX), stT = new Float32Array(ST_MAX), STOP_OFF = new Float32Array([30, 215, 30, 235, 215]);
 const BASE4 = new Int8Array([IT_CRYS, IT_CRYS, IT_RUNE, IT_MORT]), BUF4 = new Int8Array(4), got = new Uint8Array(8);
 const REC = new Int8Array(4), MOV = new Int8Array(4), CAND = new Int8Array(3);
 const CLIENTS = ['El oso con hipo necesita una poción anti-hipo', 'La ardilla fiestera quiere brillar en la oscuridad', 'El troll gruñón pide una poción de buen humor', 'El búho desvelado busca una poción de sueño profundo'];
@@ -994,10 +1031,13 @@ function shuffle(a, n) { for (let i = n - 1; i > 0; i--) { const j = Math.random
 function buildSet() {
   stN = 0; cur = 0; hasKey = 0; okN = 0; failN = 0; got.fill(0);
   BUF4.set(BASE4); shuffle(BUF4, 4);
-  const p = Math.random() * 3 | 0, q = p + 1 + (Math.random() * (5 - p) | 0);   // llave antes del cofre
-  for (let i = 0, k = 0; i < 6; i++) {
+  const n = CFG.level === 3 ? 8 : 6, p = Math.random() * 3 | 0, q = p + 1 + (Math.random() * (n - 1 - p) | 0);   // llave antes del cofre
+  let d0 = -1, d1 = -1;   // nivel Difícil: dos hongos distractores que no hay que tocar
+  if (n === 8) { do d0 = Math.random() * n | 0; while (d0 === p || d0 === q); do d1 = Math.random() * n | 0; while (d1 === p || d1 === q || d1 === d0); }
+  for (let i = 0, k = 0; i < n; i++) {
     if (i === p) addStation(T_KEY, IT_KEY, 0);
     else if (i === q) addStation(T_CHEST, IT_CHEST, 0);
+    else if (i === d0 || i === d1) addStation(T_NOGO, SP_MUSH, 0);
     else { const it = BUF4[k++]; addStation(it === IT_CRYS ? T_HIGH : T_LOW, it, 0); }
   }
 }
@@ -1011,6 +1051,7 @@ function enterScene(s) {
   else if (s === SC_BREW) exBegin(MOV[0]);
   else if (s === SC_DONE) { setSt(S_CELEB); sfxFanfare(); }
   else if (s === SC_RUN) CH.busy = Math.max(CH.busy, 0.25);
+  else if (s >= SC_MENU) uiEnter(s);
 }
 function updFade(dt) {
   if (fadeDir === 1) { fadeA += dt / 0.3; if (fadeA >= 1) { fadeA = 1; enterScene(nextScene); fadeDir = -1; } }
@@ -1019,12 +1060,12 @@ function updFade(dt) {
 function resolveOK(i) {
   stS[i] = 2; stT[i] = 0; okN++;
   const it = stItem[i];
-  if (it === IT_KEY) hasKey = 1; else if (it === IT_CHEST) { got[IT_WATER]++; hasKey = 0; } else got[it]++;
+  if (it === IT_KEY) hasKey = 1; else if (it === IT_CHEST) { got[IT_WATER]++; hasKey = 0; } else if (it !== SP_MUSH) got[it]++;
   burst(1, stX[i], itemY(stType[i]), 24, 520, 3); sfxOK(); addPush(1);
 }
 function resolveFail(i) {
   stS[i] = 3; stT[i] = 0; failN++; sfxFail(); addPush(0);
-  if (!stRetry[i]) addStation(stType[i], stItem[i], 1);   // el ingrediente reaparece más adelante
+  if (!stRetry[i] && stType[i] !== T_NOGO) addStation(stType[i], stItem[i], 1);   // el ingrediente reaparece más adelante
 }
 function activate(i) {
   const t = stType[i];
@@ -1033,7 +1074,7 @@ function activate(i) {
     stS[i] = 1; setSt(S_KEY); goScene(SC_LOCK); return;
   }
   stS[i] = 1; stT[i] = 0; CH.look = (t === T_HIGH || t === T_KEY) ? 1 : -1;
-  exBegin(t === T_LOW ? KX_FLEX : KX_EXT); setSt(S_WAIT);
+  exBegin(t === T_LOW ? KX_FLEX : t === T_NOGO ? KX_NOGO : KX_EXT); setSt(S_WAIT);
 }
 function jump() { CH.vy = -JUMP_V; CH.grounded = 0; setSt(S_JUMP); sqv -= 1.6; sfxJump(); }
 function land(v) {
@@ -1151,7 +1192,7 @@ function updBrew(dt) {
 }
 function update(dt) {
   tick++; simT += dt;
-  if (hit[K_HELP]) help ^= 1;
+  if (hit[K_HELP] || clickA === A_HELP || (help && hit[K_ESC])) { help = hit[K_ESC] ? 0 : (help + 1) % 3; clickA = -1; }
   if (hit[K_PERF]) perf ^= 1;
   if (hit[K_MUTE]) { AU.muted = !AU.muted; showToast(AU.muted ? 7 : 6); if (AU.master) AU.master.gain.setTargetAtTime(AU.muted ? 0 : 0.5, AU.ac.currentTime, 0.05); }
   musicKeys();
@@ -1169,6 +1210,7 @@ function update(dt) {
   musicTick();
   for (let i = 0; i < stN; i++) stT[i] += dt;
   switch (scene) {
+    case SC_MENU: case SC_LOGIN: case SC_PREP: case SC_STORY: case SC_RESULTS: case SC_STATS: case SC_CONFIG: updUI(dt); break;
     case SC_INTRO: sceneT += dt; if (hit[K_GO] && !fadeDir) { enterScene(SC_GO); sfxOK(); } break;
     case SC_GO: sceneT += dt; if (sceneT > 1.3) enterScene(SC_RUN); break;
     case SC_RUN: updRun(dt); break;
@@ -1177,7 +1219,7 @@ function update(dt) {
     case SC_DONE:
       sceneT += dt; sparkAcc += dt * 6;
       while (sparkAcc > 1) { sparkAcc -= 1; const a = Math.random() * TAU; spawn(PK_STAR, 0, W * 0.56 + Math.cos(a) * 220, 560 + Math.sin(a) * 220, 0, -20, 1.2, 16 + Math.random() * 16, 3); }
-      if (hit[K_GO] && sceneT > 0.6 && !fadeDir) { setIdx++; goScene(SC_INTRO); }
+      if (hit[K_GO] && sceneT > 0.6 && !fadeDir) { recordSession(); goScene(SC_RESULTS); }
       break;
   }
   updPose(dt); updParticles(dt); updFade(dt);
@@ -1240,7 +1282,7 @@ function strike(v, m, t, peak, dec) {   // una nota en una voz persistente: tono
 function musicMask() {   // capas activas según la escena y la tarea
   if (help) return L_PAD;
   switch (scene) {
-    case SC_INTRO: return L_PAD | L_MEL;
+    case SC_INTRO: case SC_MENU: case SC_LOGIN: case SC_PREP: case SC_STORY: case SC_STATS: case SC_CONFIG: return L_PAD | L_MEL;
     case SC_GO: case SC_RUN: return EX.run && !FREE ? L_PAD | L_SUSP : L_PAD | L_MEL | L_BASS | L_ARP;
     case SC_LOCK: return L_PAD | L_TICK | L_SUSP;
     case SC_BREWGO: case SC_BREW: return L_PAD | L_ARP | L_BASS;
@@ -1273,7 +1315,7 @@ function musicStep(t) {
   }
 }
 function bioTick(now) {   // biofeedback sonoro: el brillo sigue a la activación y una campana resuelve al cruzar el umbral
-  const on = CFG.sonicBio && EX.run && EX.started && EX.kind !== KX_LOCK && !FREE, v = on ? clamp(hudValue(), 0, 1) : 1;
+  const on = CFG.sonicBio && EX.run && EX.started && EX.kind <= KX_SUP && !FREE, v = on ? clamp(hudValue(), 0, 1) : 1;
   MU.filt.frequency.setTargetAtTime(on ? 450 + 7000 * v * v : 6000, now, 0.12);
   const lit = on && v >= 0.5 ? 1 : 0;
   if (lit && !MU.wasLit) { const R = BIOMES[CFG.biome].root; strike(MU.chime[0], R + 24, now + 0.01, 0.8, 1.6); strike(MU.chime[1], R + 31, now + 0.12, 0.6, 1.4); }
@@ -1294,6 +1336,311 @@ function musicKeys() {
   if (hit[K_MUS]) { MU.on ^= 1; MU.bus.gain.setTargetAtTime(MU.on ? CFG.musicVol : 0, now, 0.15); showToast(T_MUS + (MU.on ? 0 : 1)); }
   if (hit[K_BIO]) { CFG.sonicBio ^= 1; showToast(T_MUS + (CFG.sonicBio ? 2 : 3)); }
   if (hit[K_BIOME]) { setBiome((CFG.biome + 1) % BIOMES.length); showToast(T_MUS + 4 + CFG.biome); }
+}
+
+// =====================================================================
+// 16. FLUJO DE MENÚS: inicio, acceso, preparación, historia, resultados, estadísticas y configuración.
+//     Todo es cartulina; se navega con flechas, Espacio y Esc, o con clic.
+// =====================================================================
+const HB = 64, HBX = new Float32Array(HB), HBY = new Float32Array(HB), HBW = new Float32Array(HB), HBH = new Float32Array(HB), HBA = new Int16Array(HB);
+let hbN = 0, clickA = -1;   // zonas clicables: se registran en cada render (sin alocar) y el clic se resuelve en el update
+function hotspot(x, y, w, h, a) { if (hbN < HB) { HBX[hbN] = x; HBY[hbN] = y; HBW[hbN] = w; HBH[hbN] = h; HBA[hbN++] = a; } }
+function uiClick(lx, ly) { for (let i = hbN - 1; i >= 0; i--) if (lx >= HBX[i] && ly >= HBY[i] && lx <= HBX[i] + HBW[i] && ly <= HBY[i] + HBH[i]) { clickA = HBA[i]; return true; } return false; }
+const A_HELP = 1, A_BTN = 10, A_TAB = 20, A_ITEM = 30, A_GO = 50, A_BACK = 51, A_ROW = 60, A_DEC = 80, A_INC = 100;
+let uiSel = 0, uiTab = 0, profile = -1, backTo = SC_MENU, potions = 0;
+const prepSel = new Int8Array(3);
+const MENU_TXT = ['Jugar', 'Estadísticas', 'Configuración'], MENU_COL = ['#d6336c', '#0f8f8a', '#a83fb5'];
+const USERS = ['clinico.demo', 'paciente.prueba'], PROF_TXT = ['Equipo clínico', 'Paciente de prueba'];
+const DIFF_TXT = ['Fácil', 'Medio', 'Difícil', 'Personalizar'], DIFF_ICON = [IT_HERO, IT_WATER, SP_MUSH, IT_MORT];
+const DIFF_DESC = ['Se muestra qué movimiento hacer', 'Adivina el movimiento por la posición del ingrediente', 'Recuerda la receta y no toques los hongos', 'El equipo clínico ajusta los parámetros'];
+const CHAR_TXT = ['Conejo explorador', 'Liebre de las nieves', 'Conejo canela', 'Rana', 'Mapache', 'Castor'], CHAR_NEED = [0, 1, 2, 99, 99, 99];
+const SCN_TXT = ['Bosque nocturno', 'Pradera de día', 'Cueva de cristal', 'Lago de luciérnagas', 'Pantano'], SCN_NEED = [0, 2, 99, 99, 99];
+const TAB_TXT = ['Dificultad', 'Personaje', 'Escenarios'], TAB_N = [4, 6, 5];
+const CLIENT_NAME = ['Oso Bruno', 'Ardilla Lila', 'Troll Gruñón', 'Búho Noctis'];
+const STORIES = [
+  '¡Hic! ¿Tú eres el nuevo aprendiz? ¡Ayuda, llevo tres semanas con este hipo terrible! Para mi poción busca los ingredientes en el Bosque Encantado. Cuando encuentres uno aparecerá un círculo mágico: ¡actúa antes de que se acabe! *Si flota muy alto, salta extendiendo tu muñeca.* *Si está en el suelo, agáchate flexionándola.* Y si hallas un cofre, gira la llave moviendo tu brazo de lado a lado. Recuerda la regla de tu maestra: las pociones empiezan y terminan con agua. ¡Hic!',
+  '¡Hola, aprendiz! Esta noche hay fiesta en el gran roble y quiero brillar en la oscuridad. Junta los ingredientes del bosque y prepárame la poción más luminosa. *Salta para lo que flota* y *agáchate para lo que está en el suelo.* ¡Que nadie brille más que yo!',
+  'Grrr... Hoy amanecí de malas y todo me molesta. Dicen que tu maestra hace una poción de buen humor. *Extiende la muñeca para alcanzar lo alto* y *flexiónala para lo bajo.* Si ves un cofre, gira la llave con calma. Grrr... gracias, supongo.',
+  '¡Uuh! Llevo días sin dormir: de noche trabajo y de día no hay quien duerma. Necesito una poción de sueño profundo. *Busca con atención* y no tomes nada que no esté en la receta. ¡Uuh, qué sueño!'];
+const unlocked = need => need < 99 && (profile === 0 || potions >= need);   // clínico: todo lo que existe abierto; 99 = aún no existe
+// Historial del Índice de Complejidad (solo en memoria: no se guarda nada). FÓRMULA PROVISIONAL, el GDD no la define.
+const HIST = new Float32Array(48); let histN = 0, histDemo = 0;
+function seedDemoHistory() { const r = mulberry32(5); histN = 0; for (let i = 0; i < 12; i++) HIST[histN++] = clamp(14 + i * 1.5 + (r() - 0.5) * 6, 0, 100); histDemo = histN; }
+function sessionIC() { const acc = okN / Math.max(1, okN + failN); return 100 * clamp(0.35 * (CFG.thrOn - 0.1) / 0.7 + 0.25 * CFG.hold / 5 + 0.2 * (CFG.level - 1) / 2 + 0.2 * acc, 0, 1); }
+// Estadísticas por movimiento, calculadas al entrar a la escena desde la telemetría en memoria
+const ST_OK = new Float32Array(6), ST_BAD = new Float32Array(6), ST_RT = new Float32Array(6), ST_RTN = new Float32Array(6);
+const ST_TXT = ['Extensión', 'Flexión', 'Pronación', 'Supinación', 'Cofre', 'Distractor'];
+function computeStats() {
+  ST_OK.fill(0); ST_BAD.fill(0); ST_RT.fill(0); ST_RTN.fill(0);
+  const n = Math.min(TEL.n, TEL.cap), b = TEL.buf;
+  for (let i = 0; i < n; i++) { const o = i * TEL.w, k = b[o + 2] | 0; if (k > 5) continue; if (b[o + 3] > 0) ST_OK[k]++; else ST_BAD[k]++; if (b[o + 4] > 0) { ST_RT[k] += b[o + 4]; ST_RTN[k]++; } }
+}
+let STORY_CV = null;
+function bakeStory() {   // la historia se compone una vez por cliente: palabras entre * van resaltadas
+  const w = Math.min(1040, W - 760), s = sprS, c = mkCanvas(w * s, 640 * s), g = c.getContext('2d'); g.setTransform(s, 0, 0, s, 0, 0); g.textBaseline = 'top';
+  const words = STORIES[setIdx % 4].split(' '); let x = 0, y = 0, em = 0; g.font = '500 36px ' + UIF; const sp = g.measureText(' ').width;
+  for (let i = 0; i < words.length; i++) {
+    let wd = words[i]; const st = wd[0] === '*', en = wd[wd.length - 1] === '*'; if (st) { em = 1; wd = wd.slice(1); } if (en) wd = wd.slice(0, -1);
+    g.font = (em ? '700' : '500') + ' 36px ' + UIF; const ww = g.measureText(wd).width;
+    if (x + ww > w && x > 0) { x = 0; y += 52; }
+    g.fillStyle = em ? '#a8322f' : INK_TXT; g.fillText(wd, x, y); x += ww + sp; if (en) em = 0;
+  }
+  STORY_CV = c;
+}
+const CFG_TXT = ['Umbral de activación (% MVC)', 'Tiempo de sostenimiento (s)', 'Ventana de oportunidad (s)', 'Nivel', 'Postura inicial', 'Biofeedback sonoro', 'Ajuste dinámico (ADD)', 'Volumen de música (%)'];
+function cfgAdjust(r, d) {
+  switch (r) {
+    case 0: CFG.thrOn = clamp(Math.round((CFG.thrOn + 0.05 * d) * 20) / 20, 0.1, 0.8); break;
+    case 1: CFG.hold = clamp(CFG.hold + 0.25 * d, 0, 5); break;
+    case 2: CFG.window = clamp(CFG.window + 0.5 * d, 2, 10); break;
+    case 3: CFG.level = clamp(CFG.level + d, 1, 3); prepSel[0] = CFG.level - 1; break;
+    case 4: CFG.posture ^= 1; break;
+    case 5: CFG.sonicBio ^= 1; break;
+    case 6: CFG.add = !CFG.add; break;
+    case 7: CFG.musicVol = clamp(Math.round((CFG.musicVol + 0.1 * d) * 10) / 10, 0, 1); if (MU.ready && MU.on) MU.bus.gain.setTargetAtTime(CFG.musicVol, MU.ac.currentTime, 0.1); break;
+  }
+  sfxClick();
+}
+function prepApply() {   // aplica la elección de la pestaña activa (solo si está desbloqueada)
+  const i = prepSel[uiTab];
+  if (uiTab === 0 && i < 3) CFG.level = i + 1;
+  else if (uiTab === 1 && i < 3 && unlocked(CHAR_NEED[i]) && skinIdx !== i) { skinIdx = i; SK = SKINS[i]; bakeRIcon(); cbKey = -1; }
+  else if (uiTab === 2 && i < 2 && unlocked(SCN_NEED[i])) { if (MU.ready) setBiome(i); else CFG.biome = i; }
+}
+function recordSession() { potions++; if (histN < 48) HIST[histN++] = sessionIC(); }   // una vez por poción terminada
+function uiEnter(s) {
+  uiSel = 0;
+  if (s === SC_PREP) { prepSel[0] = CFG.level - 1; prepSel[1] = skinIdx; prepSel[2] = CFG.biome; }
+  else if (s === SC_STORY) bakeStory();
+  else if (s === SC_STATS) computeStats();
+  else if (s === SC_LOGIN) uiSel = profile < 0 ? 0 : profile;
+}
+function updUI(dt) {
+  sceneT += dt;
+  const a = clickA, lt = hit[K_LT], rt = hit[K_RT], up = hit[K_UP], dn = hit[K_DN], go = hit[K_GO] || a === A_GO, esc = hit[K_ESC] || a === A_BACK;
+  clickA = -1;
+  if (fadeDir) return;
+  if (lt || rt || up || dn) sfxClick();
+  switch (scene) {
+    case SC_MENU:
+      if (lt) uiSel = (uiSel + 2) % 3; if (rt) uiSel = (uiSel + 1) % 3;
+      if (a >= A_BTN && a < A_BTN + 3) uiSel = a - A_BTN;
+      if (go || (a >= A_BTN && a < A_BTN + 3)) { sfxOK(); if (uiSel === 0) goScene(profile < 0 ? SC_LOGIN : SC_PREP); else { backTo = SC_MENU; goScene(uiSel === 1 ? SC_STATS : SC_CONFIG); } }
+      break;
+    case SC_LOGIN:
+      if (lt || rt) uiSel ^= 1; if (a >= A_BTN && a < A_BTN + 2) uiSel = a - A_BTN;
+      if (go) { profile = uiSel; seedDemoHistory(); sfxOK(); goScene(SC_PREP); } else if (esc) goScene(SC_MENU);
+      break;
+    case SC_PREP:
+      if (up) uiTab = (uiTab + 2) % 3; if (dn) uiTab = (uiTab + 1) % 3; if (a >= A_TAB && a < A_TAB + 3) uiTab = a - A_TAB;
+      if (lt || rt) { prepSel[uiTab] = (prepSel[uiTab] + (rt ? 1 : TAB_N[uiTab] - 1)) % TAB_N[uiTab]; prepApply(); }
+      if (a >= A_ITEM && a < A_ITEM + 6) { prepSel[uiTab] = a - A_ITEM; prepApply(); }
+      if (go) { sfxOK(); if (uiTab === 0 && prepSel[0] === 3) { backTo = SC_PREP; goScene(SC_CONFIG); } else goScene(SC_STORY); } else if (esc) goScene(SC_MENU);
+      break;
+    case SC_STORY: if (go) { sfxOK(); goScene(SC_INTRO); } else if (esc) goScene(SC_PREP); break;
+    case SC_RESULTS:
+      if (lt) uiSel = (uiSel + 2) % 3; if (rt) uiSel = (uiSel + 1) % 3;
+      if (a >= A_BTN && a < A_BTN + 3) uiSel = a - A_BTN;
+      if (go || (a >= A_BTN && a < A_BTN + 3)) { sfxOK(); if (uiSel === 0) { setIdx++; goScene(SC_STORY); } else { backTo = SC_RESULTS; goScene(uiSel === 1 ? SC_STATS : SC_CONFIG); } }
+      break;
+    case SC_STATS: if (go || esc) goScene(backTo); break;
+    case SC_CONFIG:
+      if (up) uiSel = (uiSel + 7) % 8; if (dn) uiSel = (uiSel + 1) % 8;
+      if (lt || rt) cfgAdjust(uiSel, rt ? 1 : -1);
+      if (a >= A_ROW && a < A_ROW + 8) uiSel = a - A_ROW;
+      if (a >= A_DEC && a < A_DEC + 8) { uiSel = a - A_DEC; cfgAdjust(uiSel, -1); }
+      if (a >= A_INC && a < A_INC + 8) { uiSel = a - A_INC; cfgAdjust(uiSel, 1); }
+      if (go || esc) goScene(backTo);
+      break;
+  }
+}
+// ---- Render de las escenas de menú ----
+function uiButton(x, y, w, h, txt, col, selected, a) {
+  card(x, y, w, h, h * 0.36 | 0, C.cream);
+  if (selected) { dropOn(0.4); ctx.strokeStyle = C.gold; ctx.lineWidth = 7; ctx.beginPath(); rrect(ctx, x - 6, y - 6, w + 12, h + 12, h * 0.42); ctx.stroke(); dropOff(); }
+  ctx.font = F_L; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = col; ctx.fillText(txt, x + w / 2, y + h / 2 + 2);
+  hotspot(x, y, w, h, a);
+}
+function selRing(x, y, r) { dropOn(0.5); ctx.strokeStyle = C.gold; ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); dropOff(); }
+function hint(str) { tag(str, W / 2, 1040, F_S, '#5a3e2e', C.panel, TH_S); }
+function drawMenu() {
+  drawSpr(SP_T_LOGO, W / 2, 250, 1.18);
+  const dx = Math.min(520, W * 0.29);
+  for (let i = 0; i < 3; i++) {
+    const x = W / 2 + (i - 1) * dx, y = 640, s = uiSel === i, b = s ? Math.sin(simT * 4) * 6 : 0;
+    drawSpr(SP_DISC, x, y + b, s ? 1.62 : 1.5); if (s) selRing(x, y + b, 168);
+    drawSpr(SP_P0 + i, x, y - 8 + b, s ? 1.3 : 1.15);
+    tag(MENU_TXT[i], x, y + 205, F_L, MENU_COL[i], C.cream, TH_L);
+    hotspot(x - 170, y - 170, 340, 420, A_BTN + i);
+  }
+  hint('← → elegir    Espacio o clic: entrar    H: ayuda');
+}
+function drawLogin() {
+  const pw = 1120, px = (W - pw) / 2, py = 170;
+  card(px, py, pw, 700, 50, C.panel); tag('Acceso', W / 2, py, F_L, INK_TXT, C.cream, TH_L);
+  for (let i = 0; i < 2; i++) {
+    const x = W / 2 + (i - 0.5) * 380, y = py + 190, s = uiSel === i;
+    drawSpr(SP_DISC, x, y, 1.1); if (s) selRing(x, y, 120);
+    drawSpr(i === 0 ? SP_CLI0 + 3 : SP_SKIN0, x, y + (i ? 6 : 14), i === 0 ? 0.55 : 1.45);
+    tag(PROF_TXT[i], x, y + 140, F_M, s ? INK_TXT : '#6a4a36', s ? C.cream : C.panel, TH_M);
+    hotspot(x - 170, y - 120, 340, 300, A_BTN + i);
+  }
+  const g = ctx, fy = py + 430;
+  for (let k = 0; k < 2; k++) {
+    const y = fy + k * 100; g.font = F_M; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText(k ? 'Contraseña' : 'Usuario', px + 330, y + 35);
+    card(px + 360, y, 640, 70, 35, '#fffaf2');
+    g.textAlign = 'left'; g.fillText(k ? '••••••••' : USERS[uiSel], px + 392, y + 37);
+    if (!k && (simT % 1) < 0.5) { let tw = TW.get(USERS[uiSel]); if (tw === undefined) { tw = g.measureText(USERS[uiSel]).width; TW.set(USERS[uiSel], tw); } g.fillRect(px + 392 + tw + 6, y + 16, 3, 40); }
+  }
+  uiButton(W / 2 - 150, py + 660, 300, 86, 'Entrar', '#0f8f8a', true, A_GO);
+  hint('Demostración: no hay contraseñas reales ni se guarda ningún dato    ← → perfil    Espacio: entrar    Esc: volver');
+}
+function drawPrep() {
+  const g = ctx, n = TAB_N[uiTab], t = uiTab;
+  card(-20, -20, 480, 110, 34, C.cream); g.font = F_L; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = MENU_COL[0]; g.fillText('Menú', 230, 45); hotspot(0, 0, 460, 90, A_BACK);
+  for (let i = 0; i < 3; i++) {   // pestañas de cartulina; la activa se levanta
+    const w = W / 3, x = i * w, y = i === t ? 900 : 950;
+    card(x - (i ? 6 : 20), y, Math.ceil(w + 26), 220, 50, i === t ? C.cream : C.panel);
+    g.font = F_L; g.fillStyle = i === t ? MENU_COL[i] : '#7a5e4a'; g.fillText(TAB_TXT[i], x + w / 2, y + 62); hotspot(x, y, w, 180, A_TAB + i);
+  }
+  for (let i = 0; i < n; i++) {
+    const cols = t === 0 ? 4 : 3, row = (i / cols) | 0, col = i % cols, rows = Math.ceil(n / cols);
+    const x = W * (0.5 + (col - (Math.min(cols, n - row * cols) - 1) / 2) * (t === 0 ? 0.22 : 0.27)), y = (rows === 1 ? 430 : 280 + row * 345) + (t === 0 && col % 2 ? 90 : 0) - (t === 0 ? 40 : 0), ds = rows > 1 && t === 1 ? 1.15 : 1.45;   // dos filas: discos más chicos para que no se encimen
+    const open = t === 0 || unlocked(t === 1 ? CHAR_NEED[i] : SCN_NEED[i]), s = prepSel[t] === i;
+    if (t === 2) {   // escenarios: miniaturas
+      const w = 380, h = 214; card(x - w / 2, y - h / 2, w, h, 26, open ? '#1d2a5c' : '#24203c');
+      g.save(); g.beginPath(); rrect(g, x - w / 2 + 10, y - h / 2 + 10, w - 20, h - 20, 20); g.clip();
+      if (i === 0) { g.drawImage(SKY, x - w / 2, y - h / 2, w, h); const L = LAYERS[4]; g.drawImage(L.cv, 0, 0, L.cv.width * 0.45, L.cv.height, x - w / 2, y - h / 2 + 20, w, h); }
+      else if (i === 1) { g.fillStyle = '#bfe3f5'; g.fillRect(x - w / 2, y - h / 2, w, h); g.fillStyle = C.gold; g.beginPath(); g.arc(x + 110, y - 40, 34, 0, TAU); g.fill(); g.fillStyle = '#6dbb5a'; g.beginPath(); g.ellipse(x, y + 120, 260, 110, 0, 0, TAU); g.fill(); }
+      g.restore();
+      if (!open) drawSpr(SP_LOCKI, x, y - 6, 1);
+      if (s) { dropOn(0.5); g.strokeStyle = C.gold; g.lineWidth = 8; g.beginPath(); rrect(g, x - w / 2 - 8, y - h / 2 - 8, w + 16, h + 16, 30); g.stroke(); dropOff(); }
+      tag(SCN_TXT[i], x, y + h / 2 + 34, F_S, open ? INK_TXT : '#6a4a36', open ? C.cream : C.panel, TH_S);
+      hotspot(x - w / 2, y - h / 2, w, h + 60, A_ITEM + i);
+    } else {
+      drawSpr(SP_DISC, x, y, ds); if (s) selRing(x, y, 109 * ds);
+      if (open) drawSpr(t === 0 ? DIFF_ICON[i] : SP_SKIN0 + i, x, y + (t === 1 ? 8 : 0), t === 0 ? (i === 0 ? 0.8 : 1.2) : 2.1 * ds / 1.45);
+      else { g.globalAlpha = 0.35; g.fillStyle = '#1d1630'; g.beginPath(); g.arc(x, y, 97 * ds, 0, TAU); g.fill(); g.globalAlpha = 1; drawSpr(SP_LOCKI, x, y, ds * 0.85); }
+      tag(t === 0 ? DIFF_TXT[i] : (open ? CHAR_TXT[i] : CHAR_NEED[i] > 9 ? 'Próximamente' : CHAR_TXT[i]), x, y + 100 * ds + 28, F_M, INK_TXT, s ? C.cream : C.panel, TH_M);
+      hotspot(x - 105 * ds, y - 105 * ds, 210 * ds, 210 * ds + 80, A_ITEM + i);
+    }
+  }
+  if (t === 0) tag(DIFF_DESC[prepSel[0]], W / 2, 820, F_M, INK_TXT, C.cream, TH_M);
+  else if (t === 2 && prepSel[2] === 1) tag('Por ahora cambia solo la música: el paisaje está en construcción', W / 2, 820, F_S, INK_TXT, C.cream, TH_S);
+  const bx = W - 150, by = 120; drawSpr(SP_DISC, bx, by, 0.8 + 0.04 * Math.sin(simT * 4)); g.font = F_M; g.fillStyle = INK_TXT; g.fillText('¡Jugar!', bx, by + 2); hotspot(bx - 85, by - 85, 170, 170, A_GO);
+  tag('↑ ↓ pestaña    ← → elegir    Espacio: jugar    Esc: menú', W / 2, 150, F_S, '#5a3e2e', C.panel, TH_S);
+}
+function drawStory() {
+  const pw = Math.min(1700, W - 120), px = (W - pw) / 2, c = setIdx % 4;
+  card(px, 120, pw, 800, 50, C.panel);
+  drawSpr(SP_CLI0 + c, px + 300, 560, 1.25);
+  tag(CLIENT_NAME[c], px + 300, 210, F_L, INK_TXT, C.cream, TH_L);
+  if (STORY_CV) ctx.drawImage(STORY_CV, px + 560, 190, STORY_CV.width / sprS, STORY_CV.height / sprS);
+  uiButton(px + pw - 380, 840, 330, 86, 'Continuar', '#0f8f8a', true, A_GO);
+  hint('Espacio o clic: continuar    Esc: volver');
+}
+let cOx = 0, cOy = 0, cCw = 1, cCh = 1, cN = 1;
+function chX(i) { return cOx + (cN > 1 ? cCw * i / (cN - 1) : cCw / 2); }
+function chY(i) { return cOy - cCh * HIST[i] / 100; }
+function drawChart(x, y, w, h) {   // gráfica amable para el niño: una sola serie, puntos y el conejo en la sesión de hoy
+  const g = ctx; card(x, y, w, h, 30, '#f6ead6');
+  const ox = x + 160, oy = y + h - 110, cw = w - 230, ch = h - 200, n = histN;
+  g.lineWidth = 2; g.font = F_S; g.textBaseline = 'middle';
+  for (let v = 0; v <= 100; v += 20) { const yy = oy - ch * v / 100; g.strokeStyle = 'rgba(90,60,40,0.16)'; g.beginPath(); g.moveTo(ox, yy); g.lineTo(ox + cw, yy); g.stroke(); g.textAlign = 'left'; g.fillStyle = '#6a4a36'; drawNum(ox - 70, yy, v, 0, 18); }
+  g.strokeStyle = INK_TXT; g.lineWidth = 3; g.beginPath(); g.moveTo(ox, oy - ch); g.lineTo(ox, oy); g.lineTo(ox + cw, oy); g.stroke();
+  g.textAlign = 'center'; g.fillStyle = INK_TXT; g.fillText('Sesión', ox + cw / 2, oy + 72);
+  g.save(); g.translate(x + 48, oy - ch / 2); g.rotate(-Math.PI / 2); g.fillText('Índice de complejidad', 0, 0); g.restore();
+  if (n < 1) return;
+  cOx = ox; cOy = oy; cCw = cw; cCh = ch; cN = n;
+  for (let i = 0; i < n; i++) if ((i + 1) % 5 === 0) { drawSpr(SP_CAUL, chX(i), oy + 30, 0.07); g.textAlign = 'left'; g.fillStyle = '#6a4a36'; drawNum(chX(i) + 26, oy + 30, i + 1, 0, 18); }
+  dropOn(0.5); g.strokeStyle = '#6a4fc4'; g.lineWidth = 6; g.lineJoin = 'round'; g.beginPath();
+  for (let i = 0; i < n; i++) { if (i) g.lineTo(chX(i), chY(i)); else g.moveTo(chX(i), chY(i)); } g.stroke();
+  for (let i = 0; i < n; i++) { g.fillStyle = i < histDemo ? '#b7a6ea' : '#6a4fc4'; g.beginPath(); g.arc(chX(i), chY(i), i < histDemo ? 8 : 12, 0, TAU); g.fill(); }
+  dropOff();
+  if (n > histDemo) { drawSpr(SP_STAR, chX(n - 1), chY(n - 1), 1.1); drawSpr(SP_RICON, chX(n - 1) - 6, chY(n - 1) - 90, 1.25); }
+  if (histDemo) tag('Puntos claros: sesiones de demostración', x + w / 2, y + 44, F_S, '#5a3e2e', C.cream, TH_S);
+}
+function drawResults() {
+  drawSpr(SP_T_RES, W / 2, 96, 1);
+  const w = Math.min(1400, W - 240); drawChart((W - w) / 2, 170, w, 690);
+  const bw = Math.min(460, (W - 200) / 3 - 30);
+  for (let i = 0; i < 3; i++) uiButton(W / 2 + (i - 1) * (bw + 40) - bw / 2, 900, bw, 96, i ? MENU_TXT[i] : 'Seguir jugando', MENU_COL[i], uiSel === i, A_BTN + i);
+  hint('← → elegir    Espacio: entrar');
+}
+function drawStats() {
+  const g = ctx, pw = Math.min(1400, W - 160), px = (W - pw) / 2;
+  card(px, 110, pw, 800, 50, C.panel); tag('Estadísticas de la sesión', W / 2, 110, F_L, INK_TXT, C.cream, TH_L);
+  const c0 = px + 90, cA = px + pw * 0.45, cB = px + pw * 0.62, cC = px + pw * 0.82;
+  g.font = F_M; g.textBaseline = 'middle'; g.fillStyle = '#6a4a36'; g.textAlign = 'left'; g.fillText('Movimiento', c0, 230);
+  g.textAlign = 'center'; g.fillText('Aciertos', cA, 230); g.fillText('Fallos', cB, 230); g.fillText('Reacción (s)', cC, 230);
+  for (let k = 0; k < 6; k++) {
+    const y = 300 + k * 72; g.fillStyle = k & 1 ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.32)'; g.fillRect(c0 - 30, y - 32, pw - 120, 64);
+    g.fillStyle = INK_TXT; g.textAlign = 'left'; g.fillText(ST_TXT[k], c0, y);
+    drawNum(cA - 12, y, ST_OK[k], 0, 22); drawNum(cB - 12, y, ST_BAD[k], 0, 22);
+    if (ST_RTN[k] > 0) drawNum(cC - 24, y, ST_RT[k] / ST_RTN[k], 1, 22); else { g.textAlign = 'center'; g.fillText('-', cC, y); }
+  }
+  g.textAlign = 'left'; g.font = F_S; g.fillStyle = '#5a3e2e';
+  g.fillText('Pociones de esta sesión:', c0, 770); drawNum(c0 + 360, 770, potions, 0, 18);
+  g.fillText('Umbral (% MVC):', c0 + 520, 770); drawNum(c0 + 760, 770, CFG.thrOn * 100, 0, 18);
+  g.fillText(extActive() ? 'Señal: decodificador' : 'Señal: simulada por teclado', c0, 830);
+  uiButton(px + pw - 330, 870, 280, 80, 'Volver', '#0f8f8a', true, A_BACK);
+  hint('Datos solo en memoria: se borran al cerrar    Espacio o Esc: volver');
+}
+function drawConfig() {
+  const g = ctx, pw = Math.min(1400, W - 160), px = (W - pw) / 2;
+  card(px, 100, pw, 840, 50, C.panel); tag('Configuración clínica', W / 2, 100, F_L, INK_TXT, C.cream, TH_L);
+  for (let r = 0; r < 8; r++) {
+    const y = 210 + r * 86, s = uiSel === r;
+    if (s) { g.fillStyle = 'rgba(255,248,235,0.75)'; g.beginPath(); rrect(g, px + 40, y - 36, pw - 80, 72, 24); g.fill(); }
+    g.font = F_M; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText(CFG_TXT[r], px + 80, y); hotspot(px + 40, y - 36, pw * 0.6, 72, A_ROW + r);
+    const vx = px + pw - 330;
+    keycap(vx - 20, y - 34, 64, 64, -1, '-'); hotspot(vx - 20, y - 34, 64, 64, A_DEC + r);
+    keycap(vx + 210, y - 34, 64, 64, -1, '+'); hotspot(vx + 210, y - 34, 64, 64, A_INC + r);
+    g.font = F_M; g.textAlign = 'left'; g.fillStyle = INK_TXT;
+    if (r === 0) drawNum(vx + 92, y, CFG.thrOn * 100, 0, 22);
+    else if (r === 1) drawNum(vx + 84, y, CFG.hold, 1, 22);
+    else if (r === 2) drawNum(vx + 84, y, CFG.window, 1, 22);
+    else if (r === 3) drawNum(vx + 108, y, CFG.level, 0, 22);
+    else if (r === 7) drawNum(vx + 92, y, CFG.musicVol * 100, 0, 22);
+    else { g.textAlign = 'center'; g.fillText(r === 4 ? (CFG.posture ? 'Pronación' : 'Neutra') : (r === 5 ? CFG.sonicBio : CFG.add) ? 'Sí' : 'No', vx + 120, y); }
+  }
+  uiButton(px + pw - 330, 900, 280, 80, 'Listo', '#0f8f8a', true, A_BACK);
+  hint('↑ ↓ elegir    ← → ajustar    Esc: volver    Los cambios aplican a la siguiente estación');
+}
+function drawUIScene() {
+  drawBackdrop(600 + simT * 18); drawLayer(LAYERS[5], 600 + simT * 18);
+  ctx.globalAlpha = 0.42; ctx.fillStyle = C.navy; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+  switch (scene) {
+    case SC_MENU: drawMenu(); break; case SC_LOGIN: drawLogin(); break; case SC_PREP: drawPrep(); break; case SC_STORY: drawStory(); break;
+    case SC_RESULTS: drawResults(); break; case SC_STATS: drawStats(); break; case SC_CONFIG: drawConfig(); break;
+  }
+  if (scene !== SC_PREP) helpBtn();
+}
+// ---- Ayuda en dos páginas: 1) para el niño, 2) para el equipo clínico ----
+const KEYS_A = ['Shift', 'L', 'K', '1 2', 'P', 'I'], KEYS_B = ['M', 'N', 'O', 'J', 'Esc', 'H'];
+const KEYS_AT = ['Contracción débil, bajo el umbral', 'Modo libre (sin estaciones)', 'Cambiar personaje', 'Nivel 1 o 2', 'Postura neutra o pronación', 'Panel de rendimiento'];
+const KEYS_BT = ['Silenciar todo el sonido', 'Silenciar solo la música', 'Biofeedback sonoro', 'Ambiente musical', 'Volver en los menús', 'Cerrar la ayuda'];
+function drawHelp() {
+  const g = ctx; g.globalAlpha = 0.72; g.fillStyle = '#05081a'; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  hotspot(0, 0, W, H, A_HELP);
+  if (help === 1) {
+    tag('Cómo se juega', W / 2, 110, F_L, INK_TXT, C.cream, TH_L);
+    const gap = 30, cw = Math.min(330, (W - 160 - 3 * gap) / 4), k = cw / 290, x0 = (W - 4 * cw - 3 * gap) / 2;
+    for (let i = 0; i < 4; i++) introCard(x0 + i * (cw + gap), 200, k, i, extActive() && puenteFuente !== 1);
+    tag('Mantén el movimiento hasta llenar el círculo', W / 2, 640, F_M, INK_TXT, C.cream, TH_M);
+    tag('Vuelve a la postura inicial antes del siguiente', W / 2, 730, F_M, INK_TXT, C.cream, TH_M);
+    tag('Si fallas no pasa nada: el ingrediente vuelve a aparecer', W / 2, 820, F_M, INK_TXT, C.cream, TH_M);
+    hint('H: siguiente página (equipo clínico)');
+  } else {
+    const pw = Math.min(1600, W - 120), px = (W - pw) / 2;
+    card(px, 100, pw, 840, 50, C.panel); tag('Para el equipo clínico', W / 2, 100, F_L, INK_TXT, C.cream, TH_L);
+    for (let i = 0; i < 6; i++) for (let c = 0; c < 2; c++) {
+      const x = px + 70 + c * pw * 0.5, y = 210 + i * 108, kw = (c ? KEYS_B : KEYS_A)[i].length > 2 ? 130 : 76;
+      keycap(x, y - 38, kw, 76, -1, (c ? KEYS_B : KEYS_A)[i]);
+      g.font = F_M; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText((c ? KEYS_BT : KEYS_AT)[i], x + 150, y - 4);
+    }
+    hint('H: cerrar la ayuda');
+  }
 }
 
 // =====================================================================
@@ -1474,7 +1821,7 @@ function drawBar(x, y, w, h, v, hp, lit, marker) {
 function hudValue() {
   const k = EX.kind, th = CFG.thrOn * 2;
   if (!EX.run && scene !== SC_LOCK) return (sig[0] > sig[1] ? sig[0] : sig[1]) / th;
-  if (k === KX_EXT) return sig[0] / th; if (k === KX_FLEX) return sig[1] / th;
+  if (k === KX_EXT) return sig[0] / th; if (k === KX_FLEX) return sig[1] / th; if (k === KX_NOGO) return (sig[0] > sig[1] ? sig[0] : sig[1]) / th;
   if (k === KX_LOCK) return lockShow;
   return imuDir(k) / (2 * CFG.imuTheta);
 }
@@ -1485,7 +1832,7 @@ function drawHandPanel(x, y, w, h, mode) {
   else if (CFG.level >= 2) { ctx.font = F_Q; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#8f7764'; ctx.fillText('?', x + w / 2, y + h / 2 + 8); }
   else drawHandIcon(x, y, w, h, mode, simT);
 }
-function helpBtn() { drawSpr(SP_HELP, W - 90, 80, 1); }
+function helpBtn() { drawSpr(SP_HELP, W - 90, 80, 1); hotspot(W - 140, 30, 100, 100, A_HELP); }
 function extActive() { return simT - extT[0] < 0.5 || simT - extT[1] < 0.5 || simT - extT[2] < 0.5; }
 function drawHUD(mode, marker) {
   const v = hudValue(), lit = v >= 0.5, hp = (mode === KX_LOCK || mode < 0) ? 0 : EX.holdT / CFG.hold;
@@ -1499,11 +1846,11 @@ function drawHUD(mode, marker) {
 // Tarjetas didácticas: tecla grande + gesto de la mano + lo que hace el conejo. Con el decodificador real solo quedan gesto y efecto.
 const CARD_MODE = [KX_EXT, KX_FLEX, KX_PRON, KX_SUP], CARD_DIR = [0, 2, 3, 1], CARD_ICON = [SP_RJUMP, SP_RCROUCH, SP_RKEY, SP_RKEY];
 const CARD_TXT = ['¡Salta!', '¡Agáchate!', 'Palma abajo', 'Palma arriba'];
-function keycap(x, y, w, h, dir) {   // tecla de cartulina: base, cara y flecha recortada
+function keycap(x, y, w, h, dir, str) {   // tecla de cartulina: base, cara y flecha recortada
   const g = ctx;
   dropOn(0.6); g.fillStyle = '#9c8068'; g.beginPath(); rrect(g, x, y + 7, w, h, 16); g.fill(); dropOff();
   g.fillStyle = '#f6e8d6'; g.beginPath(); rrect(g, x + 3, y, w - 6, h - 6, 14); g.fill(); g.strokeStyle = 'rgba(60,30,20,0.35)'; g.lineWidth = 2; g.stroke();
-  if (dir < 0) { g.font = F_M; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText('Espacio', x + w / 2, y + h / 2 - 2); return; }
+  if (dir < 0) { g.font = F_M; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText(str, x + w / 2, y + h / 2 - 2); return; }
   g.save(); g.translate(x + w / 2, y + h / 2 - 3); g.rotate(dir * Math.PI / 2);
   g.beginPath(); g.moveTo(0, -26); g.lineTo(22, -2); g.lineTo(9, -2); g.lineTo(9, 24); g.lineTo(-9, 24); g.lineTo(-9, -2); g.lineTo(-22, -2); g.closePath();
   dropOn(0.3); g.fillStyle = INK_TXT; g.fill(); dropOff(); g.restore();
@@ -1517,8 +1864,8 @@ function introCard(x, y, k, i, real) {
     g.save(); g.translate(25, 118); g.scale(240 / 430, 240 / 430); drawHandIcon(0, 0, 430, 200, CARD_MODE[i], simT); g.restore();
     g.font = F_M; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText(CARD_TXT[i], 145, 268);
   } else {
-    keycap(22, 26, 246, 80, -1);
-    drawSpr(SP_RICON, 145, 178, 1.5);
+    keycap(22, 26, 246, 80, -1, 'Espacio');
+    drawSpr(SP_RICON, 145, 166, 1.12);
     g.globalAlpha = 0.7 + 0.3 * Math.sin(sceneT * 3.2); g.font = F_M; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText('¡Comenzar!', 145, 266); g.globalAlpha = 1;
   }
   g.restore();
@@ -1526,9 +1873,9 @@ function introCard(x, y, k, i, real) {
 function drawIntro() {
   const g = ctx, pw = Math.min(1500, W - 200), px = (W - pw) / 2, real = extActive() && puenteFuente !== 1;
   g.globalAlpha = 0.64; g.fillStyle = C.navy; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
-  drawSpr(SP_T_LOGO, W / 2, 132, 1);
+  drawSpr(SP_T_INGR, W / 2, 175, 1.3);
   panel(px, 282, pw, 236, 50);
-  drawSpr(SP_T_INGR, px + 210, 284, 0.8);
+  helpBtn();
   drawSpr(IT_HERO, px + pw * 0.13, 412, 0.66);
   for (let i = 0; i < 4; i++) {
     const it = i === 0 ? IT_CRYS : i === 1 ? IT_MORT : i === 2 ? IT_RUNE : IT_WATER, n = i === 0 ? 2 : 1, ix = px + pw * (0.36 + i * 0.165);
@@ -1602,12 +1949,12 @@ function drawBrewScene() {
   }
   helpBtnAt(64, 80);
 }
-function helpBtnAt(x, y) { drawSpr(SP_HELP, x, y, 1); }
+function helpBtnAt(x, y) { drawSpr(SP_HELP, x, y, 1); hotspot(x - 50, y - 50, 100, 100, A_HELP); }
 function drawNum(x, y, v, dec, adv) {   // dígitos sin construir strings (cero alocaciones)
   let m = Math.round(Math.abs(v) * (dec ? 10 : 1)), n = 1, t = m; while (t >= 10) { t = t / 10 | 0; n++; }
   if (dec && n < 2) n = 2;
-  let px = x + (n + (dec ? 1 : 0)) * adv;
-  for (let i = 0; i < n; i++) { if (dec && i === 1) { px -= adv; ctx.fillText('.', px, y); } px -= adv; ctx.fillText(DIG[m % 10], px, y); m = m / 10 | 0; }
+  let px = x + (n + (dec ? 0.45 : 0)) * adv;
+  for (let i = 0; i < n; i++) { if (dec && i === 1) { px -= adv * 0.45; ctx.fillText('.', px, y); } px -= adv; ctx.fillText(DIG[m % 10], px, y); m = m / 10 | 0; }
 }
 function statBlock(cx, y, v, txt) {
   const g = ctx; let n = 1, t = v; while (t >= 10) { t = t / 10 | 0; n++; }
@@ -1626,26 +1973,6 @@ function drawDone() {
   drawSpr(SP_T_DONE, W / 2, 160, 0.9 + 0.03 * Math.sin(simT * 3));
   statBlock(W * 0.56 - 150, 840, okN, 'Aciertos'); statBlock(W * 0.56 + 150, 840, failN, 'Reintentos');
   if (sceneT > 0.6) tag('Pulsa Espacio para atender al siguiente cliente', W / 2, 990, F_L, INK_TXT, GOLD_PAPER, TH_L);
-}
-let helpW = 0, helpFont = F_S;
-function drawHelp() {
-  const g = ctx, pw = Math.min(1300, W - 80), px = (W - pw) / 2;
-  g.globalAlpha = 0.7; g.fillStyle = '#05081a'; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
-  panel(px, 150, pw, 780, 50);
-  g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = '#3b1f12'; g.font = '700 62px ' + DSP; g.fillText('Cómo se juega', px + 70, 235);
-  if (pw !== helpW) { helpW = pw; helpFont = '600 ' + Math.min(34, (pw - 140) / 34 | 0) + 'px ' + UIF; }   // el texto se ajusta al ancho
-  g.font = helpFont; g.fillStyle = '#3b2418';
-  g.fillText('↑ o W  extiende la muñeca: el conejo salta por lo que flota', px + 70, 330);
-  g.fillText('↓ o S  flexiona la muñeca: se agacha por lo que está en el suelo', px + 70, 390);
-  g.fillText('← y →  pronación y supinación: abren cofres y mezclan pociones', px + 70, 450);
-  g.fillText('Mantén la tecla hasta completar el círculo de la barra', px + 70, 510);
-  g.fillText('Shift + tecla simula una contracción débil, bajo el umbral', px + 70, 570);
-  g.fillText('Suelta todo para volver a reposo antes del siguiente ejercicio', px + 70, 630);
-  g.font = F_S; g.fillStyle = '#5a3e2e';
-  g.fillText('L modo libre    K personaje    1 y 2 nivel    P postura    I rendimiento', px + 70, 704);
-  g.fillText('M sonido    N música    O biofeedback sonoro    J ambiente musical', px + 70, 750);
-  g.fillText('Sin castigos: lo que falte vuelve a aparecer más adelante.', px + 70, 806);
-  g.fillText('H o clic en ? cierra esta ayuda', px + 70, 874);
 }
 const FT = new Float32Array(240), FTS = new Float32Array(240); let ftI = 0, pAcc = 0, p50 = 0, p95 = 0, p99 = 0, cpuMs = 0;
 function drawPerf() {
@@ -1674,13 +2001,15 @@ function render(alpha) {
   g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = C.navy; g.fillRect(0, 0, cv.width, cv.height);
   g.setTransform(pxs, 0, 0, pxs, offX * dpr, offY * dpr);
   const cx = lerp(CH.px, CH.x, alpha), cy = lerp(CH.py, CH.y, alpha), camX = cx - W * 0.3;
+  hbN = 0;
   if (itemSheet) { drawItemSheet(); return; }
-  if (scene <= SC_RUN) {
+  if (scene >= SC_MENU) drawUIScene();
+  else if (scene <= SC_RUN) {
     drawWorld(camX, cx, cy);
     if (scene === SC_INTRO) drawIntro();
     else {
       const active = cur < stN && stS[cur] === 1 && !FREE;
-      drawHUD(active ? EX.kind : -1, SP_BLOB);
+      drawHUD(active ? (EX.kind === KX_NOGO ? KX_REST : EX.kind) : -1, SP_BLOB);
       if (scene === SC_GO) titleGlow(SP_T_GO, sceneT);
       if (FREE) tag('Modo libre: ← → caminar, ↑ saltar, ↓ agacharse, L para salir', W / 2, 300, F_M, INK_TXT, GOLD_PAPER, TH_M);
     }
@@ -1716,7 +2045,7 @@ function frame(ts) {
   pAcc += ft;
   if (perf && pAcc > 0.5) { pAcc = 0; FTS.set(FT); FTS.sort(); p50 = FTS[120]; p95 = FTS[228]; p99 = FTS[237]; }
 }
-layout(); bakeAll(); enterScene(SC_INTRO); Ph.set(Pc);
+layout(); bakeAll(); enterScene(SC_MENU); Ph.set(Pc);
 window.WQ = {
   cfg: CFG,
   /** Inyecta datos reales: ch 0 ECRB y 1 FCU en fracción de MVC; ch 2 IMU en grados. */
@@ -1730,9 +2059,9 @@ window.WQ = {
     extV[2] = phi0() + clamp((k === 4 ? 1 : k === 3 ? -1 : 0) * CFG.imuTheta * v / CFG.thrOn, -90, 90);   // mismo umbral relativo que el EMG
     decCo = clamp(+m.coactivacion || 0, 0, 1);
   },
-  skins: SKINS, version: '0.6.0',
+  skins: SKINS, version: '0.7.0',
   telemetry: function () { return TEL.buf.slice(0, Math.min(TEL.n, TEL.cap) * TEL.w); },
-  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
+  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
 };
 // Puente local opcional: abre la página con ?puente=ws://127.0.0.1:8765 tras `python -m wristquest.puente`.
 // La versión publicada no permite conexiones de red, así que ahí siempre se usa el teclado.

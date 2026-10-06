@@ -31,7 +31,8 @@ def main() -> None:
         p.error("--fuente serie requiere --puerto-serie")
     if not ipaddress.ip_address(a.host if a.host != "localhost" else "127.0.0.1").is_loopback:
         logging.warning(
-            "escuchando fuera de la máquina local (%s): la señal de un paciente quedará expuesta en la red",
+            "escuchando fuera de la máquina local (%s): "
+            "la señal de un paciente quedará expuesta en la red",
             a.host,
         )
     fuente = {
