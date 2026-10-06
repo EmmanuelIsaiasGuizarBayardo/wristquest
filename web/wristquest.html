@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WristQuest: prototipo jugable v0.9</title>
+<title>WristQuest: prototipo jugable v0.10</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
 <style>
 /* Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One). SIL Open Font License 1.1 */
@@ -76,7 +76,7 @@ const SP_CHECK = 7, SP_BLOB = 8, SP_BADGE = 9, SP_RICON = 10, SP_GW = 11, SP_GC 
       SP_MUSH = 33, SP_P0 = 34, SP_SKIN0 = 37, SP_CLI0 = 40, SP_LOCKI = 44, SP_T_RES = 45;   // SP_CONF..29: confeti
 const KX_EXT = 0, KX_FLEX = 1, KX_PRON = 2, KX_SUP = 3, KX_LOCK = 4, KX_NOGO = 5, KX_REST = 9;
 const SC_INTRO = 0, SC_GO = 1, SC_RUN = 2, SC_LOCK = 3, SC_BREWGO = 4, SC_BREW = 5, SC_DONE = 6,
-      SC_MENU = 7, SC_LOGIN = 8, SC_PREP = 9, SC_STORY = 10, SC_RESULTS = 11, SC_STATS = 12, SC_CONFIG = 13, SC_CALIB = 14;   // >= SC_MENU: escenas de menú
+      SC_MENU = 7, SC_LOGIN = 8, SC_PREP = 9, SC_STORY = 10, SC_RESULTS = 11, SC_STATS = 12, SC_CONFIG = 13, SC_CALIB = 14, SC_MONITOR = 15;   // >= SC_MENU: escenas de menú
 // Fredoka (OFL 1.1) va incrustada en el HTML: el juego funciona sin internet. El resto es respaldo.
 const UIF = "'Fredoka','Nunito','Segoe UI',system-ui,sans-serif";
 const DSP = UIF;
@@ -114,7 +114,7 @@ window.addEventListener('resize', function () { layout(); clearTimeout(bakeTimer
 // =====================================================================
 // 4. ENTRADA: teclado como sEMG/IMU simulados (eventos fuera del loop)
 // =====================================================================
-const K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_SH = 5, K_GO = 6, K_HELP = 7, K_PERF = 8, K_MUTE = 9, K_FREE = 10, K_L1 = 11, K_L2 = 12, K_POST = 13, K_SKIN = 14, K_MUS = 15, K_BIO = 16, K_BIOME = 17, K_ESC = 18, K_CAL = 19;
+const K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_SH = 5, K_GO = 6, K_HELP = 7, K_PERF = 8, K_MUTE = 9, K_FREE = 10, K_L1 = 11, K_L2 = 12, K_POST = 13, K_SKIN = 14, K_MUS = 15, K_BIO = 16, K_BIOME = 17, K_ESC = 18, K_CAL = 19, K_MON = 20;
 const keys = new Uint8Array(24), hit = new Uint8Array(24);
 function keyId(code) {
   switch (code) {
@@ -122,7 +122,7 @@ function keyId(code) {
     case 'ArrowLeft': case 'KeyA': return K_LT;  case 'ArrowRight': case 'KeyD': return K_RT;
     case 'ShiftLeft': case 'ShiftRight': return K_SH; case 'Space': case 'Enter': return K_GO;
     case 'KeyH': return K_HELP; case 'KeyI': return K_PERF; case 'KeyM': return K_MUTE; case 'KeyL': return K_FREE;
-    case 'Digit1': return K_L1; case 'Digit2': return K_L2; case 'KeyP': return K_POST; case 'KeyK': return K_SKIN; case 'KeyN': return K_MUS; case 'KeyO': return K_BIO; case 'KeyJ': return K_BIOME; case 'Escape': return K_ESC; case 'KeyC': return K_CAL; default: return 0;
+    case 'Digit1': return K_L1; case 'Digit2': return K_L2; case 'KeyP': return K_POST; case 'KeyK': return K_SKIN; case 'KeyN': return K_MUS; case 'KeyO': return K_BIO; case 'KeyJ': return K_BIOME; case 'Escape': return K_ESC; case 'KeyC': return K_CAL; case 'KeyV': return K_MON; default: return 0;
   }
 }
 window.addEventListener('keydown', function (e) { const k = keyId(e.code); if (!k) return; e.preventDefault(); if (!e.repeat) hit[k] = 1; keys[k] = 1; audioInit(); });
@@ -224,6 +224,7 @@ const EX = { kind: 0, run: 0, started: 0, win: 0, winMax: 5, holdT: 0, wrongT: 0
 function exBegin(kind) {
   EX.kind = kind; EX.run = 1; EX.started = 0; EX.win = 0; EX.winMax = CFG.window * (kind === KX_LOCK ? 2 : kind === KX_NOGO ? 0.6 : 1);
   EX.holdT = 0; EX.wrongT = 0; EX.rt = -1; EX.side = 1; EX.turns = 0; EX.prog = 0;
+  motorEvento('ejercicio_inicio', kind);
 }
 function imuDir(kind) { return (imu - phi0()) * (kind === KX_SUP ? 1 : -1); }
 /** Devuelve 0 pendiente, 1 éxito, -1 movimiento incorrecto, -2 ventana agotada. */
@@ -259,7 +260,8 @@ function exUpdate(dt) {
 
 // Telemetría en buffer circular preasignado: [t, escena, tipo, resultado, t. reacción, sostenimiento]
 const TEL = { w: 6, cap: 2048, n: 0, buf: new Float64Array(6 * 2048) };
-function telLog(kind, res) { const b = TEL.buf, i = (TEL.n % TEL.cap) * TEL.w; b[i] = simT; b[i+1] = scene; b[i+2] = kind; b[i+3] = res; b[i+4] = EX.rt; b[i+5] = EX.holdT; TEL.n++; }
+function telLog(kind, res) {
+  motorEvento('ejercicio_fin', kind, res); const b = TEL.buf, i = (TEL.n % TEL.cap) * TEL.w; b[i] = simT; b[i+1] = scene; b[i+2] = kind; b[i+3] = res; b[i+4] = EX.rt; b[i+5] = EX.holdT; TEL.n++; }
 // Ajuste dinámico de dificultad cada 5 ejercicios (desactivado: CFG.add)
 const ADDR = new Uint8Array(5); let addN = 0;
 function addPush(ok) {
@@ -1192,7 +1194,10 @@ function updBrew(dt) {
 }
 function update(dt) {
   tick++; simT += dt;
-  if (hit[K_HELP] || clickA === A_HELP || (help && hit[K_ESC])) { help = hit[K_ESC] ? 0 : (help + 1) % 3; clickA = -1; }
+  if (hit[K_HELP] || clickA === A_HELP || (help && hit[K_ESC])) {
+    const antes = help; help = hit[K_ESC] ? 0 : (help + 1) % 3; clickA = -1;
+    if (!antes && help) motorEvento('pausa'); else if (antes && !help) motorEvento('reanudar');   // la ayuda pausa el juego
+  }
   if (hit[K_PERF]) perf ^= 1;
   if (hit[K_MUTE]) { AU.muted = !AU.muted; showToast(AU.muted ? 7 : 6); if (AU.master) AU.master.gain.setTargetAtTime(AU.muted ? 0 : 0.5, AU.ac.currentTime, 0.05); }
   musicKeys();
@@ -1211,7 +1216,7 @@ function update(dt) {
   musicTick();
   for (let i = 0; i < stN; i++) stT[i] += dt;
   switch (scene) {
-    case SC_MENU: case SC_LOGIN: case SC_PREP: case SC_STORY: case SC_RESULTS: case SC_STATS: case SC_CONFIG: case SC_CALIB: updUI(dt); break;
+    case SC_MENU: case SC_LOGIN: case SC_PREP: case SC_STORY: case SC_RESULTS: case SC_STATS: case SC_CONFIG: case SC_CALIB: case SC_MONITOR: updUI(dt); break;
     case SC_INTRO: sceneT += dt; if (hit[K_GO] && !fadeDir) { enterScene(SC_GO); sfxOK(); } break;
     case SC_GO: sceneT += dt; if (sceneT > 1.3) enterScene(SC_RUN); break;
     case SC_RUN: updRun(dt); break;
@@ -1284,7 +1289,7 @@ function musicMask() {   // capas activas según la escena y la tarea
   if (help) return L_PAD;
   switch (scene) {
     case SC_INTRO: case SC_MENU: case SC_LOGIN: case SC_PREP: case SC_STORY: case SC_STATS: case SC_CONFIG: return L_PAD | L_MEL;
-    case SC_CALIB: return L_PAD;   // calibración: solo el colchón, sin melodía que distraiga
+    case SC_CALIB: case SC_MONITOR: return L_PAD;   // calibración: solo el colchón, sin melodía que distraiga
     case SC_GO: case SC_RUN: return EX.run && !FREE ? L_PAD | L_SUSP : L_PAD | L_MEL | L_BASS | L_ARP;
     case SC_LOCK: return L_PAD | L_TICK | L_SUSP;
     case SC_BREWGO: case SC_BREW: return L_PAD | L_ARP | L_BASS;
@@ -1348,7 +1353,7 @@ const HB = 64, HBX = new Float32Array(HB), HBY = new Float32Array(HB), HBW = new
 let hbN = 0, clickA = -1;   // zonas clicables: se registran en cada render (sin alocar) y el clic se resuelve en el update
 function hotspot(x, y, w, h, a) { if (hbN < HB) { HBX[hbN] = x; HBY[hbN] = y; HBW[hbN] = w; HBH[hbN] = h; HBA[hbN++] = a; } }
 function uiClick(lx, ly) { for (let i = hbN - 1; i >= 0; i--) if (lx >= HBX[i] && ly >= HBY[i] && lx <= HBX[i] + HBW[i] && ly <= HBY[i] + HBH[i]) { clickA = HBA[i]; return true; } return false; }
-const A_CALIB = 120, A_HELP = 1, A_BTN = 10, A_TAB = 20, A_ITEM = 30, A_GO = 50, A_BACK = 51, A_ROW = 60, A_DEC = 80, A_INC = 100;
+const A_EXPORT = 121, A_MONITOR = 122, A_CALIB = 120, A_HELP = 1, A_BTN = 10, A_TAB = 20, A_ITEM = 30, A_GO = 50, A_BACK = 51, A_ROW = 60, A_DEC = 80, A_INC = 100;
 let uiSel = 0, uiTab = 0, profile = -1, backTo = SC_MENU, potions = 0;
 const prepSel = new Int8Array(3);
 const MENU_TXT = ['Jugar', 'Estadísticas', 'Configuración'], MENU_COL = ['#d6336c', '#0f8f8a', '#a83fb5'];
@@ -1414,7 +1419,7 @@ function uiEnter(s) {
   uiSel = 0;
   if (s === SC_PREP) { prepSel[0] = CFG.level - 1; prepSel[1] = skinIdx; prepSel[2] = CFG.biome; }
   else if (s === SC_STORY) bakeStory();
-  else if (s === SC_STATS) computeStats();
+  else if (s === SC_STATS) { computeStats(); motorEnviar({ cmd: 'sesion', accion: 'resumen' }); }
   else if (s === SC_LOGIN) uiSel = profile < 0 ? 0 : profile;
 }
 function updUI(dt) {
@@ -1431,7 +1436,7 @@ function updUI(dt) {
       break;
     case SC_LOGIN:
       if (lt || rt) uiSel ^= 1; if (a >= A_BTN && a < A_BTN + 2) uiSel = a - A_BTN;
-      if (go) { profile = uiSel; seedDemoHistory(); sfxOK(); goScene(SC_PREP); } else if (esc) goScene(SC_MENU);
+      if (go) { profile = uiSel; seedDemoHistory(); motorSesion(COD_PERFIL[uiSel]); sfxOK(); goScene(SC_PREP); } else if (esc) goScene(SC_MENU);
       break;
     case SC_PREP:
       if (up) uiTab = (uiTab + 2) % 3; if (dn) uiTab = (uiTab + 1) % 3; if (a >= A_TAB && a < A_TAB + 3) uiTab = a - A_TAB;
@@ -1445,7 +1450,7 @@ function updUI(dt) {
       if (a >= A_BTN && a < A_BTN + 3) uiSel = a - A_BTN;
       if (go || (a >= A_BTN && a < A_BTN + 3)) { sfxOK(); if (uiSel === 0) { setIdx++; goScene(SC_STORY); } else { backTo = SC_RESULTS; goScene(uiSel === 1 ? SC_STATS : SC_CONFIG); } }
       break;
-    case SC_STATS: if (go || esc) goScene(backTo); break;
+    case SC_STATS: if (a === A_EXPORT) motorEnviar({ cmd: 'sesion', accion: 'terminar' }); else if (go || esc) goScene(backTo); break;
     case SC_CONFIG:
       if (up) uiSel = (uiSel + 7) % 8; if (dn) uiSel = (uiSel + 1) % 8;
       if (lt || rt) cfgAdjust(uiSel, rt ? 1 : -1);
@@ -1453,9 +1458,11 @@ function updUI(dt) {
       if (a >= A_DEC && a < A_DEC + 8) { uiSel = a - A_DEC; cfgAdjust(uiSel, -1); }
       if (a >= A_INC && a < A_INC + 8) { uiSel = a - A_INC; cfgAdjust(uiSel, 1); }
       if (a === A_CALIB || hit[K_CAL]) goScene(SC_CALIB);
+      else if (a === A_MONITOR || hit[K_MON]) { oscSuscribir(1); goScene(SC_MONITOR); }
       else if (go || esc) goScene(backTo);
       break;
     case SC_CALIB: updCalib(a, go, esc); break;
+    case SC_MONITOR: if (hit[K_GO]) oscPausa ^= 1; if (esc) { oscSuscribir(0); goScene(SC_CONFIG); } break;
   }
 }
 // ---- Render de las escenas de menú ----
@@ -1496,6 +1503,7 @@ function drawLogin() {
     g.textAlign = 'left'; g.fillText(k ? '••••••••' : USERS[uiSel], px + 392, y + 37);
     if (!k && (simT % 1) < 0.5) { let tw = TW.get(USERS[uiSel]); if (tw === undefined) { tw = g.measureText(USERS[uiSel]).width; TW.set(USERS[uiSel], tw); } g.fillRect(px + 392 + tw + 6, y + 16, 3, 40); }
   }
+  g.font = F_S; g.textAlign = 'center'; g.fillStyle = '#5a3e2e'; g.fillText('Código de paciente: ' + COD_PERFIL[uiSel] + ' (seudónimo; el motor guarda la sesión con este código)', W / 2, py + 625);
   uiButton(W / 2 - 150, py + 660, 300, 86, 'Entrar', '#0f8f8a', true, A_GO);
   hint('Demostración: no hay contraseñas reales ni se guarda ningún dato    ← → perfil    Espacio: entrar    Esc: volver');
 }
@@ -1584,11 +1592,24 @@ function drawStats() {
     if (ST_RTN[k] > 0) drawNum(cC - 24, y, ST_RT[k] / ST_RTN[k], 1, 22); else { g.textAlign = 'center'; g.fillText('-', cC, y); }
   }
   g.textAlign = 'left'; g.font = F_S; g.fillStyle = '#5a3e2e';
-  g.fillText('Pociones de esta sesión:', c0, 770); drawNum(c0 + 360, 770, potions, 0, 18);
-  g.fillText('Umbral (% MVC):', c0 + 520, 770); drawNum(c0 + 760, 770, CFG.thrOn * 100, 0, 18);
-  g.fillText(extActive() ? 'Señal: decodificador' : 'Señal: simulada por teclado', c0, 830);
+  g.fillText('Pociones de esta sesión: ' + DIG[Math.min(potions, 9)], c0, 735);
+  g.fillText('Umbral: ' + Math.round(CFG.thrOn * 100) + ' % MVC', c0, 780);
+  g.fillText(extActive() ? (puenteFuente === 1 ? 'Señal: motor, paciente simulado' : 'Señal: brazalete') : 'Señal: teclado', c0, 825);
+  // resumen del motor: se calcula del registro de eventos, no de la memoria del juego
+  const r = MOT.resumen, xr = px + pw * 0.52;
+  if (MOT.on && (MOT.sesion || (r && r.final))) {
+    g.fillStyle = INK_TXT;
+    g.fillText('Sesión ' + ((r && r.codigo) || MOT.sesion), xr, 735);
+    if (r) {
+      g.fillText('Minutos efectivos: ' + r.minutos_efectivos.toFixed(1) + ' de ' + Math.round(r.minutos_prescritos), xr, 780);
+      const f = r.fatiga || {};
+      g.fillText('Fatiga (MDF): ' + (f.pendiente_pct_min == null ? 'faltan datos (n = ' + f.n + ')' : f.pendiente_pct_min + ' % por minuto (n = ' + f.n + ')'), xr, 825);
+    }
+    if (r && r.final) tag('Exportado en la carpeta ' + r.codigo + ' (CSV seudonimizado)', W / 2, 1040, F_S, '#1f6b2a', C.cream, TH_S);
+    else uiButton(px + pw - 760, 870, 400, 80, 'Exportar sesión', '#a8322f', false, A_EXPORT);
+  }
   uiButton(px + pw - 330, 870, 280, 80, 'Volver', '#0f8f8a', true, A_BACK);
-  hint('Datos solo en memoria: se borran al cerrar    Espacio o Esc: volver');
+  if (!(MOT.resumen && MOT.resumen.final)) hint(MOT.sesion ? 'El motor registra la sesión ' + MOT.sesion + ' en el disco local    Esc: volver' : 'Datos solo en memoria: se borran al cerrar    Espacio o Esc: volver');
 }
 function drawConfig() {
   const g = ctx, pw = Math.min(1400, W - 160), px = (W - pw) / 2;
@@ -1609,15 +1630,16 @@ function drawConfig() {
     else { g.textAlign = 'center'; g.fillText(r === 4 ? (CFG.posture ? 'Pronación' : 'Neutra') : (r === 5 ? CFG.sonicBio : CFG.add) ? 'Sí' : 'No', vx + 120, y); }
   }
   uiButton(px + 40, 900, 400, 80, 'Calibrar sensor', '#a83fb5', false, A_CALIB);
+  uiButton(px + 470, 900, 420, 80, 'Monitor de señal', '#3b5bdb', false, A_MONITOR);
   uiButton(px + pw - 330, 900, 280, 80, 'Listo', '#0f8f8a', true, A_BACK);
-  hint('↑ ↓ elegir    ← → ajustar    C: calibrar sensor    Esc: volver');
+  hint('↑ ↓ elegir    ← → ajustar    C: calibrar    V: monitor de señal    Esc: volver');
 }
 function drawUIScene() {
   drawBackdrop(600 + simT * 18); drawLayer(LAYERS[5], 600 + simT * 18);
   ctx.globalAlpha = 0.42; ctx.fillStyle = C.navy; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
   switch (scene) {
     case SC_MENU: drawMenu(); break; case SC_LOGIN: drawLogin(); break; case SC_PREP: drawPrep(); break; case SC_STORY: drawStory(); break;
-    case SC_RESULTS: drawResults(); break; case SC_STATS: drawStats(); break; case SC_CONFIG: drawConfig(); break; case SC_CALIB: drawCalib(); break;
+    case SC_RESULTS: drawResults(); break; case SC_STATS: drawStats(); break; case SC_CONFIG: drawConfig(); break; case SC_CALIB: drawCalib(); break; case SC_MONITOR: drawMonitor(); break;
   }
   if (scene !== SC_PREP) helpBtn();
 }
@@ -1658,7 +1680,7 @@ const MOT = {
   calidad: new Int8Array(4).fill(-1), env: new Float32Array(4), envOk: new Uint8Array(4),
   act: new Float32Array(4), actOk: new Uint8Array(4), tNiv: -9,
   cal: { fase: 'inactiva', paso: 0, mov: '', rep: 1, de: 3, prog: 0, resta: 0, msg: '', dur: 0, activa: 0 },
-  res: null, error: '', tError: -9, dec: null, tDec: -9
+  res: null, error: '', tError: -9, dec: null, tDec: -9, sesion: null, resumen: null
 };
 const CAL_IDX = { 'sin evaluar': -1, bueno: 0, dudoso: 1, malo: 2 };
 function motorEnviar(o) { if (MOT.ws && MOT.ws.readyState === 1) { MOT.ws.send(JSON.stringify(o)); return true; } return false; }
@@ -1670,10 +1692,12 @@ function conectarMotor(url, espera) {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     switch (m.tipo) {
       case 'decodificador': window.WQ.feedDecoder(m); MOT.dec = m; MOT.tDec = simT; break;
-      case 'hola': MOT.version = m.version | 0; MOT.fuente = m.fuente || ''; break;
+      case 'hola': MOT.version = m.version | 0; MOT.fuente = m.fuente || ''; if (scene === SC_MONITOR) oscSuscribir(1); break;
+      case 'osc': oscRecibir(m); break;
+      case 'sesion_resumen': MOT.resumen = m; break;
       case 'estado':
         MOT.fuente = m.fuente || ''; puenteFuente = m.fuente === 'serie' ? 2 : m.fuente === 'simulada' ? 1 : 0;
-        MOT.activa = m.activa ? 1 : 0; MOT.calibrado = m.calibrado ? 1 : 0; MOT.errorFuente = m.error_fuente || '';
+        MOT.activa = m.activa ? 1 : 0; MOT.calibrado = m.calibrado ? 1 : 0; MOT.errorFuente = m.error_fuente || ''; MOT.sesion = m.sesion || null;
         if (m.calidad) for (let i = 0; i < 4; i++) { const q = CAL_IDX[m.calidad[i]]; MOT.calidad[i] = q === undefined ? -1 : q; }
         break;
       case 'niveles':
@@ -1817,6 +1841,78 @@ function updCalib(a, go, esc) {
     if (motorEnviar({ cmd: 'calibrar', repeticiones: a === A_BTN + 1 ? 1 : 3 })) { MOT.res = null; sfxOK(); }
   } else if (c.activa && (a === A_BTN + 2 || esc)) motorEnviar({ cmd: 'cancelar' });
   else if (!c.activa && esc) goScene(SC_CONFIG);
+}
+
+// ---- Sesión de paciente y eventos: el juego solo avisa; el motor registra, calcula y exporta ----
+const COD_PERFIL = ['DEMO-CLINICO', 'PRUEBA01'];   // seudónimos de demostración, nunca nombres
+const MOV_EVT = ['extension', 'flexion', 'pronacion', 'supinacion', 'cofre', 'distractor'];
+let exId = 0, exAbierto = -1;
+function motorSesion(codigo) { motorEnviar({ cmd: 'sesion', accion: 'iniciar', codigo: codigo }); }
+function motorEvento(tipo, kind, res) {
+  if (!MOT.on || !MOT.sesion) return;
+  if (tipo === 'ejercicio_inicio') {
+    if (exAbierto >= 0) motorEnviar({ cmd: 'evento', tipo: 'ejercicio_fin', id: exAbierto, resultado: 'interrumpido', rt_s: null });
+    exAbierto = ++exId;
+    motorEnviar({ cmd: 'evento', tipo: tipo, id: exAbierto, movimiento: MOV_EVT[kind] || 'otro' });
+  } else if (tipo === 'ejercicio_fin') {
+    if (exAbierto < 0) return;
+    motorEnviar({ cmd: 'evento', tipo: tipo, id: exAbierto, resultado: res === 1 ? 'acierto' : res === -2 ? 'tiempo' : 'fallo',
+      rt_s: EX.rt >= 0 ? Math.round(EX.rt * 1000) / 1000 : null });
+    exAbierto = -1;
+  } else motorEnviar({ cmd: 'evento', tipo: tipo });
+}
+
+// ---- Monitor de señal: osciloscopio de los cuatro canales filtrados ----
+// El motor manda mínimo y máximo por cubeta de 5 ms; cada cubeta es una línea vertical, así la
+// traza conserva sus picos. Un hueco (null) se deja en blanco: nunca se dibuja como cero.
+const OSC_N = 600, OSC_COL = ['#3b5bdb', '#d6336c', '#0f8f8a', '#a83fb5'];
+const oscMin = [], oscMax = [], oscEsc = new Float32Array(4).fill(100);
+for (let c = 0; c < 4; c++) { oscMin.push(new Float32Array(OSC_N).fill(NaN)); oscMax.push(new Float32Array(OSC_N).fill(NaN)); }
+let oscW = 0, oscPausa = 0, oscDt = 5;
+function oscRecibir(m) {
+  if (oscPausa) return;
+  oscDt = m.dt_ms || 5;
+  const n = m.min[0].length;
+  for (let j = 0; j < n; j++) {
+    for (let c = 0; c < 4; c++) { const a = m.min[c][j], b = m.max[c][j]; oscMin[c][oscW] = a === null ? NaN : a; oscMax[c][oscW] = b === null ? NaN : b; }
+    oscW = (oscW + 1) % OSC_N;
+  }
+}
+function oscSuscribir(on) { motorEnviar({ cmd: 'osciloscopio', activo: !!on }); }
+function drawMonitor() {
+  const g = ctx, pw = Math.min(1760, W - 80), px = (W - pw) / 2, top = 150, alto = 760;
+  tag('Monitor de señal', W / 2, 80, F_L, INK_TXT, C.cream, TH_L);
+  card(px, top, pw, alto, 40, C.cream);
+  if (!MOT.on) {
+    g.font = F_M; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT;
+    g.fillText('Sin conexión con el motor: inicia synapvolit.servidor y abre el juego con ?motor=…', W / 2, top + alto / 2);
+  } else {
+    const x0 = px + 250, w = pw - 290, lh = (alto - 60) / 4;
+    for (let c = 0; c < 4; c++) {
+      const yc = top + 30 + lh * (c + 0.5), mn = oscMin[c], mx = oscMax[c];
+      let pico = 0;   // escala automática suave, sin saltos
+      for (let i = 0; i < OSC_N; i++) { const v = Math.max(Math.abs(mn[i]), Math.abs(mx[i])); if (v > pico) pico = v; }
+      oscEsc[c] += (Math.max(20, pico * 1.15) - oscEsc[c]) * 0.08;
+      g.strokeStyle = 'rgba(90,60,40,0.18)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, yc); g.lineTo(x0 + w, yc); g.stroke();
+      g.strokeStyle = OSC_COL[c]; g.lineWidth = 1.6; g.beginPath();
+      const k = (lh * 0.45) / oscEsc[c];
+      for (let i = 0; i < OSC_N; i++) {
+        const j = (oscW + i) % OSC_N; if (mn[j] !== mn[j]) continue;   // NaN: hueco
+        const x = x0 + (i * w) / OSC_N; g.moveTo(x, yc - mx[j] * k); g.lineTo(x, yc - mn[j] * k + 0.5);
+      }
+      g.stroke();
+      g.font = F_M; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = OSC_COL[c]; g.fillText(CANAL_TXT[c], px + 30, yc - 26);
+      const q = MOT.calidad[c];
+      g.font = F_S; g.fillStyle = INK_TXT; g.fillText('±', px + 30, yc + 14); drawNum(px + 52, yc + 14, oscEsc[c], 0, 17); g.fillText('µV', px + 130, yc + 14);
+      marca(px + 46, yc + 52, 13, q === 0 ? 'hecho' : q === 2 ? 'error' : 'pendiente');
+      g.fillText(q >= 0 ? CALIDAD_TXT[q] : 'sin evaluar', px + 68, yc + 52);
+    }
+    g.font = F_S; g.textAlign = 'right'; g.fillStyle = '#6a4a36';
+    drawNum(x0 + w - 70, top + alto - 22, OSC_N * oscDt / 1000, 0, 17); g.fillText('s', x0 + w, top + alto - 22);
+    if (oscPausa) tag('En pausa', W / 2, top + 30, F_M, '#a8322f', C.cream, TH_M);
+  }
+  const d = MOT.dec && simT - MOT.tDec < 0.5 ? MOT.dec : null;
+  hint((d ? 'Decisión: ' + (d.clase ? CAL_PASOS[d.clase + 1] : 'Reposo') + '    ' : '') + 'Espacio: pausar    Esc: volver    Pasa-banda 20-450 Hz, muesca 60 Hz');
 }
 
 // =====================================================================
@@ -2235,9 +2331,9 @@ window.WQ = {
     extV[2] = phi0() + clamp((k === 4 ? 1 : k === 3 ? -1 : 0) * CFG.imuTheta * v / CFG.thrOn, -90, 90);   // mismo umbral relativo que el EMG
     decCo = clamp(+m.coactivacion || 0, 0, 1);
   },
-  skins: SKINS, version: '0.9.0',
+  skins: SKINS, version: '0.10.0',
   telemetry: function () { return TEL.buf.slice(0, Math.min(TEL.n, TEL.cap) * TEL.w); },
-  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), dec: MOT.dec, env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
+  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), dec: MOT.dec, sesion: MOT.sesion, resumen: MOT.resumen, oscW: oscW, env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
 };
 let puenteOn = 0, puenteFuente = 0;   // fuente: 0 ninguna, 1 simulada, 2 serie (la versión publicada no tiene red)
 { const q = new URLSearchParams(location.search), u = q.get('motor') || q.get('puente'); if (u) conectarMotor(u, 1); }
