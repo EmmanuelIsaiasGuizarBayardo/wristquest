@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WristQuest: prototipo jugable v0.7</title>
+<title>WristQuest: prototipo jugable v0.8</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
 <style>
 /* Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One). SIL Open Font License 1.1 */
@@ -76,7 +76,7 @@ const SP_CHECK = 7, SP_BLOB = 8, SP_BADGE = 9, SP_RICON = 10, SP_GW = 11, SP_GC 
       SP_MUSH = 33, SP_P0 = 34, SP_SKIN0 = 37, SP_CLI0 = 40, SP_LOCKI = 44, SP_T_RES = 45;   // SP_CONF..29: confeti
 const KX_EXT = 0, KX_FLEX = 1, KX_PRON = 2, KX_SUP = 3, KX_LOCK = 4, KX_NOGO = 5, KX_REST = 9;
 const SC_INTRO = 0, SC_GO = 1, SC_RUN = 2, SC_LOCK = 3, SC_BREWGO = 4, SC_BREW = 5, SC_DONE = 6,
-      SC_MENU = 7, SC_LOGIN = 8, SC_PREP = 9, SC_STORY = 10, SC_RESULTS = 11, SC_STATS = 12, SC_CONFIG = 13;   // >= SC_MENU: escenas de menú
+      SC_MENU = 7, SC_LOGIN = 8, SC_PREP = 9, SC_STORY = 10, SC_RESULTS = 11, SC_STATS = 12, SC_CONFIG = 13, SC_CALIB = 14;   // >= SC_MENU: escenas de menú
 // Fredoka (OFL 1.1) va incrustada en el HTML: el juego funciona sin internet. El resto es respaldo.
 const UIF = "'Fredoka','Nunito','Segoe UI',system-ui,sans-serif";
 const DSP = UIF;
@@ -114,7 +114,7 @@ window.addEventListener('resize', function () { layout(); clearTimeout(bakeTimer
 // =====================================================================
 // 4. ENTRADA: teclado como sEMG/IMU simulados (eventos fuera del loop)
 // =====================================================================
-const K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_SH = 5, K_GO = 6, K_HELP = 7, K_PERF = 8, K_MUTE = 9, K_FREE = 10, K_L1 = 11, K_L2 = 12, K_POST = 13, K_SKIN = 14, K_MUS = 15, K_BIO = 16, K_BIOME = 17, K_ESC = 18;
+const K_UP = 1, K_DN = 2, K_LT = 3, K_RT = 4, K_SH = 5, K_GO = 6, K_HELP = 7, K_PERF = 8, K_MUTE = 9, K_FREE = 10, K_L1 = 11, K_L2 = 12, K_POST = 13, K_SKIN = 14, K_MUS = 15, K_BIO = 16, K_BIOME = 17, K_ESC = 18, K_CAL = 19;
 const keys = new Uint8Array(24), hit = new Uint8Array(24);
 function keyId(code) {
   switch (code) {
@@ -122,7 +122,7 @@ function keyId(code) {
     case 'ArrowLeft': case 'KeyA': return K_LT;  case 'ArrowRight': case 'KeyD': return K_RT;
     case 'ShiftLeft': case 'ShiftRight': return K_SH; case 'Space': case 'Enter': return K_GO;
     case 'KeyH': return K_HELP; case 'KeyI': return K_PERF; case 'KeyM': return K_MUTE; case 'KeyL': return K_FREE;
-    case 'Digit1': return K_L1; case 'Digit2': return K_L2; case 'KeyP': return K_POST; case 'KeyK': return K_SKIN; case 'KeyN': return K_MUS; case 'KeyO': return K_BIO; case 'KeyJ': return K_BIOME; case 'Escape': return K_ESC; default: return 0;
+    case 'Digit1': return K_L1; case 'Digit2': return K_L2; case 'KeyP': return K_POST; case 'KeyK': return K_SKIN; case 'KeyN': return K_MUS; case 'KeyO': return K_BIO; case 'KeyJ': return K_BIOME; case 'Escape': return K_ESC; case 'KeyC': return K_CAL; default: return 0;
   }
 }
 window.addEventListener('keydown', function (e) { const k = keyId(e.code); if (!k) return; e.preventDefault(); if (!e.repeat) hit[k] = 1; keys[k] = 1; audioInit(); });
@@ -1210,7 +1210,7 @@ function update(dt) {
   musicTick();
   for (let i = 0; i < stN; i++) stT[i] += dt;
   switch (scene) {
-    case SC_MENU: case SC_LOGIN: case SC_PREP: case SC_STORY: case SC_RESULTS: case SC_STATS: case SC_CONFIG: updUI(dt); break;
+    case SC_MENU: case SC_LOGIN: case SC_PREP: case SC_STORY: case SC_RESULTS: case SC_STATS: case SC_CONFIG: case SC_CALIB: updUI(dt); break;
     case SC_INTRO: sceneT += dt; if (hit[K_GO] && !fadeDir) { enterScene(SC_GO); sfxOK(); } break;
     case SC_GO: sceneT += dt; if (sceneT > 1.3) enterScene(SC_RUN); break;
     case SC_RUN: updRun(dt); break;
@@ -1283,6 +1283,7 @@ function musicMask() {   // capas activas según la escena y la tarea
   if (help) return L_PAD;
   switch (scene) {
     case SC_INTRO: case SC_MENU: case SC_LOGIN: case SC_PREP: case SC_STORY: case SC_STATS: case SC_CONFIG: return L_PAD | L_MEL;
+    case SC_CALIB: return L_PAD;   // calibración: solo el colchón, sin melodía que distraiga
     case SC_GO: case SC_RUN: return EX.run && !FREE ? L_PAD | L_SUSP : L_PAD | L_MEL | L_BASS | L_ARP;
     case SC_LOCK: return L_PAD | L_TICK | L_SUSP;
     case SC_BREWGO: case SC_BREW: return L_PAD | L_ARP | L_BASS;
@@ -1346,7 +1347,7 @@ const HB = 64, HBX = new Float32Array(HB), HBY = new Float32Array(HB), HBW = new
 let hbN = 0, clickA = -1;   // zonas clicables: se registran en cada render (sin alocar) y el clic se resuelve en el update
 function hotspot(x, y, w, h, a) { if (hbN < HB) { HBX[hbN] = x; HBY[hbN] = y; HBW[hbN] = w; HBH[hbN] = h; HBA[hbN++] = a; } }
 function uiClick(lx, ly) { for (let i = hbN - 1; i >= 0; i--) if (lx >= HBX[i] && ly >= HBY[i] && lx <= HBX[i] + HBW[i] && ly <= HBY[i] + HBH[i]) { clickA = HBA[i]; return true; } return false; }
-const A_HELP = 1, A_BTN = 10, A_TAB = 20, A_ITEM = 30, A_GO = 50, A_BACK = 51, A_ROW = 60, A_DEC = 80, A_INC = 100;
+const A_CALIB = 120, A_HELP = 1, A_BTN = 10, A_TAB = 20, A_ITEM = 30, A_GO = 50, A_BACK = 51, A_ROW = 60, A_DEC = 80, A_INC = 100;
 let uiSel = 0, uiTab = 0, profile = -1, backTo = SC_MENU, potions = 0;
 const prepSel = new Int8Array(3);
 const MENU_TXT = ['Jugar', 'Estadísticas', 'Configuración'], MENU_COL = ['#d6336c', '#0f8f8a', '#a83fb5'];
@@ -1450,8 +1451,10 @@ function updUI(dt) {
       if (a >= A_ROW && a < A_ROW + 8) uiSel = a - A_ROW;
       if (a >= A_DEC && a < A_DEC + 8) { uiSel = a - A_DEC; cfgAdjust(uiSel, -1); }
       if (a >= A_INC && a < A_INC + 8) { uiSel = a - A_INC; cfgAdjust(uiSel, 1); }
-      if (go || esc) goScene(backTo);
+      if (a === A_CALIB || hit[K_CAL]) goScene(SC_CALIB);
+      else if (go || esc) goScene(backTo);
       break;
+    case SC_CALIB: updCalib(a, go, esc); break;
   }
 }
 // ---- Render de las escenas de menú ----
@@ -1604,15 +1607,16 @@ function drawConfig() {
     else if (r === 7) drawNum(vx + 92, y, CFG.musicVol * 100, 0, 22);
     else { g.textAlign = 'center'; g.fillText(r === 4 ? (CFG.posture ? 'Pronación' : 'Neutra') : (r === 5 ? CFG.sonicBio : CFG.add) ? 'Sí' : 'No', vx + 120, y); }
   }
+  uiButton(px + 40, 900, 400, 80, 'Calibrar sensor', '#a83fb5', false, A_CALIB);
   uiButton(px + pw - 330, 900, 280, 80, 'Listo', '#0f8f8a', true, A_BACK);
-  hint('↑ ↓ elegir    ← → ajustar    Esc: volver    Los cambios aplican a la siguiente estación');
+  hint('↑ ↓ elegir    ← → ajustar    C: calibrar sensor    Esc: volver');
 }
 function drawUIScene() {
   drawBackdrop(600 + simT * 18); drawLayer(LAYERS[5], 600 + simT * 18);
   ctx.globalAlpha = 0.42; ctx.fillStyle = C.navy; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
   switch (scene) {
     case SC_MENU: drawMenu(); break; case SC_LOGIN: drawLogin(); break; case SC_PREP: drawPrep(); break; case SC_STORY: drawStory(); break;
-    case SC_RESULTS: drawResults(); break; case SC_STATS: drawStats(); break; case SC_CONFIG: drawConfig(); break;
+    case SC_RESULTS: drawResults(); break; case SC_STATS: drawStats(); break; case SC_CONFIG: drawConfig(); break; case SC_CALIB: drawCalib(); break;
   }
   if (scene !== SC_PREP) helpBtn();
 }
@@ -1641,6 +1645,162 @@ function drawHelp() {
     }
     hint('H: cerrar la ayuda');
   }
+}
+
+// =====================================================================
+// 17. MOTOR SYNAPVOLIT (contrato v2) Y CALIBRACIÓN GUIADA
+//     Abre el juego con ?motor=ws://127.0.0.1:8765 (también acepta ?puente= del puente viejo).
+//     El juego solo dibuja: la calibración la conduce y la calcula el motor.
+// =====================================================================
+const MOT = {
+  on: 0, ws: null, version: 0, fuente: '', activa: 0, calibrado: 0, errorFuente: '',
+  calidad: new Int8Array(4).fill(-1), env: new Float32Array(4), envOk: new Uint8Array(4),
+  act: new Float32Array(4), actOk: new Uint8Array(4), tNiv: -9,
+  cal: { fase: 'inactiva', paso: 0, mov: '', rep: 1, de: 3, prog: 0, resta: 0, msg: '', dur: 0, activa: 0 },
+  res: null, error: '', tError: -9
+};
+const CAL_IDX = { 'sin evaluar': -1, bueno: 0, dudoso: 1, malo: 2 };
+function motorEnviar(o) { if (MOT.ws && MOT.ws.readyState === 1) { MOT.ws.send(JSON.stringify(o)); return true; } return false; }
+function conectarMotor(url, espera) {
+  let ws; try { ws = new WebSocket(url); } catch (e) { return; }
+  MOT.ws = ws;
+  ws.onopen = function () { MOT.on = 1; puenteOn = 1; espera = 1; };
+  ws.onmessage = function (ev) {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    switch (m.tipo) {
+      case 'decodificador': window.WQ.feedDecoder(m); break;
+      case 'hola': MOT.version = m.version | 0; MOT.fuente = m.fuente || ''; break;
+      case 'estado':
+        MOT.fuente = m.fuente || ''; puenteFuente = m.fuente === 'serie' ? 2 : m.fuente === 'simulada' ? 1 : 0;
+        MOT.activa = m.activa ? 1 : 0; MOT.calibrado = m.calibrado ? 1 : 0; MOT.errorFuente = m.error_fuente || '';
+        if (m.calidad) for (let i = 0; i < 4; i++) { const q = CAL_IDX[m.calidad[i]]; MOT.calidad[i] = q === undefined ? -1 : q; }
+        break;
+      case 'niveles':
+        for (let i = 0; i < 4; i++) {
+          const e = m.env_uv[i], a = m.act[i];
+          MOT.envOk[i] = e !== null ? 1 : 0; MOT.env[i] = e || 0; MOT.actOk[i] = a !== null ? 1 : 0; MOT.act[i] = a || 0;
+        }
+        MOT.tNiv = simT; break;
+      case 'calibracion': {
+        const c = MOT.cal;
+        c.fase = m.fase; c.paso = m.paso | 0; c.mov = m.movimiento || ''; c.rep = m.repeticion | 0; c.de = m.de | 0;
+        c.prog = +m.progreso || 0; c.resta = +m.restante_s || 0; c.msg = m.mensaje || ''; c.dur = +m.duracion_s || 0; c.activa = m.activa ? 1 : 0;
+        break;
+      }
+      case 'calibracion_resultado': MOT.res = m; break;
+      case 'error': MOT.error = m.detalle || ''; MOT.tError = simT; break;
+    }
+  };
+  ws.onclose = function () {
+    MOT.on = 0; MOT.ws = null; MOT.activa = 0; MOT.cal.activa = 0; puenteOn = 0; puenteFuente = 0;
+    setTimeout(conectarMotor, espera * 1000, url, Math.min(espera * 2, 16));
+  };
+}
+// niveles viejos de más de 0.5 s no se dibujan: ausencia explícita también en la interfaz
+function nivelesFrescos() { return MOT.on && simT - MOT.tNiv < 0.5; }
+
+// ---- Escena de calibración ----
+const CAL_PASOS = ['Contacto', 'Reposo', 'Extensión', 'Flexión', 'Pronación', 'Supinación'];
+const CAL_MODO = { extension: KX_EXT, flexion: KX_FLEX, pronacion: KX_PRON, supinacion: KX_SUP };
+const CANAL_TXT = ['Extensión', 'Flexión', 'Pronación', 'Supinación'];
+const CALIDAD_TXT = ['bueno', 'dudoso', 'malo'];
+let calMsg = '', calLineas = [''], calAnchoMsg = 0;
+function lineasDe(str, ancho) {   // partición en renglones, cacheada por mensaje (no por cuadro)
+  if (str === calMsg && ancho === calAnchoMsg) return calLineas;
+  ctx.font = F_M; calMsg = str; calAnchoMsg = ancho; calLineas = [];
+  let linea = '';
+  for (const p of str.split(' ')) {
+    const prueba = linea ? linea + ' ' + p : p;
+    if (ctx.measureText(prueba).width > ancho && linea) { calLineas.push(linea); linea = p; } else linea = prueba;
+  }
+  calLineas.push(linea);
+  return calLineas;
+}
+function marca(x, y, r, tipo) {   // círculo de papel con número, palomita o cruz: el estado no depende del color
+  const g = ctx;
+  dropOn(0.4); g.fillStyle = tipo === 'hecho' ? '#5fc96f' : tipo === 'actual' ? C.gold : tipo === 'error' ? '#e07a7a' : C.cream;
+  g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); dropOff();
+  g.strokeStyle = INK_TXT; g.lineWidth = 5; g.lineCap = 'round';
+  if (tipo === 'hecho') { g.beginPath(); g.moveTo(x - r * 0.42, y); g.lineTo(x - r * 0.1, y + r * 0.32); g.lineTo(x + r * 0.45, y - r * 0.35); g.stroke(); }
+  else if (tipo === 'error') { g.beginPath(); g.moveTo(x - r * 0.35, y - r * 0.35); g.lineTo(x + r * 0.35, y + r * 0.35); g.moveTo(x + r * 0.35, y - r * 0.35); g.lineTo(x - r * 0.35, y + r * 0.35); g.stroke(); }
+}
+function drawCalib() {
+  const g = ctx, pw = Math.min(1720, W - 100), px = (W - pw) / 2, c = MOT.cal;
+  tag('Calibración del sensor', W / 2, 80, F_L, INK_TXT, C.cream, TH_L);
+  if (!MOT.on) {
+    card(W / 2 - 560, 200, 1120, 520, 50, C.panel);
+    g.font = F_L; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText('Sin conexión con el motor', W / 2, 300);
+    g.font = F_M; g.fillText('Inicia el motor y abre el juego con ?motor=ws://127.0.0.1:8765', W / 2, 400);
+    g.font = F_S; g.fillStyle = '#5a3e2e'; g.fillText('uv run python -m synapvolit.servidor --fuente simulada', W / 2, 480);
+    g.fillText('(o --fuente serie --puerto-serie COM3 con el brazalete)', W / 2, 530);
+    uiButton(W / 2 - 140, 780, 280, 80, 'Volver', '#0f8f8a', true, A_BACK);
+    hint('Esc: volver'); return;
+  }
+  // izquierda: los seis pasos
+  card(px, 150, 380, 740, 40, C.panel);
+  for (let i = 0; i < 6; i++) {
+    const y = 225 + i * 112, hecho = c.fase === 'lista' || c.paso > i + 1, actual = c.activa && c.paso === i + 1;
+    const err = c.fase === 'error' && c.paso === i + 1;
+    marca(px + 70, y, 30, hecho ? 'hecho' : err ? 'error' : actual ? 'actual' : 'pendiente');
+    if (!hecho && !err) { g.font = F_M; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText(DIG[i + 1], px + 70, y + 2); }
+    g.font = actual ? F_L : F_M; g.textAlign = 'left'; g.fillStyle = actual ? INK_TXT : '#6a4a36'; g.fillText(CAL_PASOS[i], px + 120, y + 2);
+  }
+  // centro: instrucción, gesto y cuenta regresiva
+  const cx0 = px + 410, cw = pw - 410 - 430, mx = cx0 + cw / 2;
+  card(cx0, 150, cw, 740, 40, C.cream);
+  const modo = c.activa && c.mov ? CAL_MODO[c.mov] : KX_REST;
+  g.save(); g.translate(mx - 215, 180); drawHandIcon(0, 0, 430, 200, modo, simT); g.restore();
+  const lineas = lineasDe(c.activa || c.fase !== 'inactiva' ? c.msg : 'Coloca el brazalete y pulsa Calibrar', cw - 80);
+  g.font = F_M; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = c.fase === 'error' ? '#a8322f' : INK_TXT;
+  for (let i = 0; i < lineas.length; i++) g.fillText(lineas[i], mx, 430 + i * 46);
+  if (c.activa) {
+    const ry = 640, r = 105;
+    g.lineWidth = 22; g.lineCap = 'round'; g.strokeStyle = C.panel; g.beginPath(); g.arc(mx, ry, r, 0, TAU); g.stroke();
+    g.strokeStyle = c.fase === 'contraccion' ? '#e2508f' : '#0f8f8a';
+    dropOn(0.3); g.beginPath(); g.arc(mx, ry, r, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(c.prog, 0, 1)); g.stroke(); dropOff();
+    g.font = F_L; g.fillStyle = INK_TXT; g.textAlign = 'center'; drawNum(mx - 14, ry + 2, Math.ceil(c.resta), 0, 30);
+    if (c.mov) { g.font = F_S; g.textAlign = 'center'; g.fillText('Repetición ' + DIG[Math.min(c.rep, 9)] + ' de ' + DIG[Math.min(c.de, 9)], mx, ry + r + 50); }
+  } else if (MOT.res && c.fase === 'lista') {   // resumen para el equipo clínico
+    g.font = F_S; g.textAlign = 'left'; g.fillStyle = '#5a3e2e';
+    g.fillText('µV de envolvente     reposo     referencia', cx0 + 50, 560);
+    for (let i = 0; i < 4; i++) {
+      g.fillStyle = INK_TXT; g.fillText(CANAL_TXT[i], cx0 + 50, 605 + i * 42);
+      drawNum(cx0 + 330, 605 + i * 42, MOT.res.reposo_uv[i], 1, 20); drawNum(cx0 + 500, 605 + i * 42, MOT.res.referencia_uv[i], 1, 20);
+    }
+    if (MOT.res.advertencias.length) { g.fillStyle = '#a8322f'; g.fillText('Revisar: ' + MOT.res.advertencias[0], cx0 + 50, 790); }
+  }
+  // derecha: los cuatro canales en vivo y su contacto
+  const rx = px + pw - 400, frescos = nivelesFrescos();
+  card(rx, 150, 400, 740, 40, C.panel);
+  for (let i = 0; i < 4; i++) {
+    const y = 215 + i * 170, q = MOT.calidad[i];
+    g.font = F_M; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText(CANAL_TXT[i], rx + 35, y);
+    card(rx + 35, y + 30, 330, 46, 20, '#fffaf2');
+    if (frescos && MOT.envOk[i]) {   // escala logarítmica: de 1 µV a 1 mV
+      const f = clamp(Math.log10(Math.max(MOT.env[i], 1)) / 3, 0, 1);
+      g.fillStyle = '#6a4fc4'; g.beginPath(); rrect(g, rx + 41, y + 36, Math.max(10, 318 * f), 34, 16); g.fill();
+      g.font = F_S; g.textAlign = 'left'; g.fillStyle = INK_TXT; drawNum(rx + 250, y + 112, MOT.env[i], 0, 18); g.fillText('µV', rx + 330, y + 112);
+    } else { g.font = F_S; g.textAlign = 'right'; g.fillStyle = '#6a4a36'; g.fillText('sin señal', rx + 362, y + 112); }
+    marca(rx + 52, y + 112, 16, q === 0 ? 'hecho' : q === 2 ? 'error' : 'pendiente');
+    g.font = F_S; g.textAlign = 'left'; g.fillStyle = INK_TXT; g.fillText(q >= 0 ? CALIDAD_TXT[q] : 'sin evaluar', rx + 80, y + 112);
+  }
+  // botones
+  if (c.activa) uiButton(W / 2 - 160, 920, 320, 86, 'Cancelar', '#a8322f', true, A_BTN + 2);
+  else {
+    uiButton(W / 2 - 600, 920, 420, 86, 'Calibrar (3 rep.)', '#0f8f8a', true, A_BTN);
+    uiButton(W / 2 - 160, 920, 420, 86, 'Rápida (1 rep.)', '#a83fb5', false, A_BTN + 1);
+    uiButton(W / 2 + 300, 920, 300, 86, 'Volver', '#6a4a36', false, A_BACK);
+  }
+  if (simT - MOT.tError < 4) tag(MOT.error, W / 2, 1040, F_S, '#a8322f', C.cream, TH_S);
+  else hint(MOT.fuente === 'simulada' ? 'FUENTE SIMULADA: el motor reproduce sEMG real del movimiento que se pide'
+    : MOT.errorFuente ? MOT.errorFuente : 'Espacio: calibrar    Esc: cancelar o volver');
+}
+function updCalib(a, go, esc) {
+  const c = MOT.cal;
+  if (!c.activa && (a === A_BTN || a === A_BTN + 1 || go)) {
+    if (motorEnviar({ cmd: 'calibrar', repeticiones: a === A_BTN + 1 ? 1 : 3 })) { MOT.res = null; sfxOK(); }
+  } else if (c.activa && (a === A_BTN + 2 || esc)) motorEnviar({ cmd: 'cancelar' });
+  else if (!c.activa && esc) goScene(SC_CONFIG);
 }
 
 // =====================================================================
@@ -2059,24 +2219,12 @@ window.WQ = {
     extV[2] = phi0() + clamp((k === 4 ? 1 : k === 3 ? -1 : 0) * CFG.imuTheta * v / CFG.thrOn, -90, 90);   // mismo umbral relativo que el EMG
     decCo = clamp(+m.coactivacion || 0, 0, 1);
   },
-  skins: SKINS, version: '0.7.0',
+  skins: SKINS, version: '0.8.0',
   telemetry: function () { return TEL.buf.slice(0, Math.min(TEL.n, TEL.cap) * TEL.w); },
-  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
+  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
 };
-// Puente local opcional: abre la página con ?puente=ws://127.0.0.1:8765 tras `python -m wristquest.puente`.
-// La versión publicada no permite conexiones de red, así que ahí siempre se usa el teclado.
-let puenteOn = 0, puenteFuente = 0;   // fuente: 0 ninguna, 1 simulada, 2 serie
-function conectarPuente(url, espera) {
-  let ws; try { ws = new WebSocket(url); } catch (e) { return; }
-  ws.onopen = function () { puenteOn = 1; espera = 1; };
-  ws.onmessage = function (ev) {
-    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
-    if (m.tipo === 'decodificador') window.WQ.feedDecoder(m);
-    else if (m.tipo === 'estado') puenteFuente = m.fuente === 'serie' ? 2 : m.fuente === 'simulada' ? 1 : 0;
-  };
-  ws.onclose = function () { puenteOn = 0; puenteFuente = 0; setTimeout(conectarPuente, espera * 1000, url, Math.min(espera * 2, 16)); };
-}
-{ const u = new URLSearchParams(location.search).get('puente'); if (u) conectarPuente(u, 1); }
+let puenteOn = 0, puenteFuente = 0;   // fuente: 0 ninguna, 1 simulada, 2 serie (la versión publicada no tiene red)
+{ const q = new URLSearchParams(location.search), u = q.get('motor') || q.get('puente'); if (u) conectarMotor(u, 1); }
 // La fuente incrustada carga de forma asíncrona: al estar lista se rehornean textos y tarjetas con Fredoka
 if (document.fonts) document.fonts.load("700 52px 'Fredoka'").then(function () { TW.clear(); bakeAll(); });
 requestAnimationFrame(frame);
