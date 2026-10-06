@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WristQuest: prototipo jugable v0.11</title>
+<title>WristQuest: prototipo jugable v0.12</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
 <style>
 /* Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One). SIL Open Font License 1.1 */
@@ -1194,9 +1194,13 @@ function updBrew(dt) {
 }
 function update(dt) {
   tick++; simT += dt;
+  const escAyuda = help && hit[K_ESC];   // ese Esc solo cierra la ayuda
   if (hit[K_HELP] || clickA === A_HELP || (help && hit[K_ESC])) {
     const antes = help; help = hit[K_ESC] ? 0 : (help + 1) % 3; clickA = -1;
     if (!antes && help) motorEvento('pausa'); else if (antes && !help) motorEvento('reanudar');   // la ayuda pausa el juego
+  }
+  if (hit[K_ESC] && !escAyuda && !help && scene <= SC_DONE && !fadeDir) {   // Esc en el juego: al menú principal
+    motorEvento('interrumpir'); goScene(SC_MENU); return;
   }
   if (hit[K_PERF]) perf ^= 1;
   if (hit[K_MUTE]) { AU.muted = !AU.muted; showToast(AU.muted ? 7 : 6); if (AU.master) AU.master.gain.setTargetAtTime(AU.muted ? 0 : 0.5, AU.ac.currentTime, 0.05); }
@@ -1437,7 +1441,10 @@ function updUI(dt) {
       break;
     case SC_LOGIN:
       if (lt || rt) uiSel ^= 1; if (a >= A_BTN && a < A_BTN + 2) uiSel = a - A_BTN;
-      if (go) { profile = uiSel; seedDemoHistory(); motorSesion(COD_PERFIL[uiSel]); sfxOK(); goScene(SC_PREP); } else if (esc) goScene(SC_MENU);
+      if (go) {
+        profile = uiSel; seedDemoHistory(); sfxOK();
+        if (MOT.on) { motorSesion(COD_PERFIL[uiSel]); calibDestino = SC_PREP; goScene(SC_CALIB); } else goScene(SC_PREP);   // con motor: calibrar o verificar antes de jugar
+      } else if (esc) goScene(SC_MENU);
       break;
     case SC_PREP:
       if (up) uiTab = (uiTab + 2) % 3; if (dn) uiTab = (uiTab + 1) % 3; if (a >= A_TAB && a < A_TAB + 3) uiTab = a - A_TAB;
@@ -1458,7 +1465,7 @@ function updUI(dt) {
       if (a >= A_ROW && a < A_ROW + 8) uiSel = a - A_ROW;
       if (a >= A_DEC && a < A_DEC + 8) { uiSel = a - A_DEC; cfgAdjust(uiSel, -1); }
       if (a >= A_INC && a < A_INC + 8) { uiSel = a - A_INC; cfgAdjust(uiSel, 1); }
-      if (a === A_CALIB || hit[K_CAL]) goScene(SC_CALIB);
+      if (a === A_CALIB || hit[K_CAL]) { calibDestino = SC_CONFIG; goScene(SC_CALIB); }
       else if (a === A_MONITOR || hit[K_MON]) goScene(SC_MONITOR);
       else if (go || esc) goScene(backTo);
       break;
@@ -1762,7 +1769,16 @@ function marca(x, y, r, tipo) {   // círculo de papel con número, palomita o c
 }
 function drawCalib() {
   const g = ctx, pw = Math.min(1720, W - 100), px = (W - pw) / 2, c = MOT.cal;
-  tag('Calibración del sensor', W / 2, 80, F_L, INK_TXT, C.cream, TH_L);
+  tag(MOT.sesion ? 'Calibración del sensor: ' + MOT.sesion : 'Calibración del sensor', W / 2, 80, F_L, INK_TXT, C.cream, TH_L);
+  if (MOT.on && !MOT.sesion) {   // sin paciente no se calibra: el perfil se guardaría a nombre de nadie
+    card(W / 2 - 560, 200, 1120, 520, 50, C.panel);
+    g.font = F_L; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText('Primero elige al paciente', W / 2, 320);
+    g.font = F_M; g.fillText('La calibración se guarda en el perfil de cada paciente.', W / 2, 420);
+    g.fillText('Entra por Acceso y aquí mismo podrás calibrar o verificar.', W / 2, 480);
+    uiButton(W / 2 - 330, 780, 380, 86, 'Ir a Acceso', '#0f8f8a', true, A_BTN + 5);
+    uiButton(W / 2 + 80, 780, 260, 86, 'Volver', '#6a4a36', false, A_BACK);
+    hint('Espacio: ir a Acceso    Esc: volver'); return;
+  }
   if (!MOT.on) {
     card(W / 2 - 560, 200, 1120, 520, 50, C.panel);
     g.font = F_L; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = INK_TXT; g.fillText('Sin conexión con el motor', W / 2, 300);
@@ -1838,29 +1854,39 @@ function drawCalib() {
   }
   // botones
   if (c.activa) uiButton(W / 2 - 160, 920, 320, 86, 'Cancelar', '#a8322f', true, A_BTN + 2);
-  else if (perfilUsable()) {
+  else if (perfilUsable() && !MOT.calibrado) {   // ya calibrado o verificado: verificar deja de ser lo principal
     uiButton(W / 2 - 760, 920, 420, 86, 'Verificar (20 s)', '#0f8f8a', true, A_BTN + 3);
     uiButton(W / 2 - 320, 920, 400, 86, 'Calibrar (3 rep.)', '#a83fb5', false, A_BTN);
     uiButton(W / 2 + 100, 920, 360, 86, 'Rápida (1 rep.)', '#6a4a36', false, A_BTN + 1);
-    uiButton(W / 2 + 480, 920, 260, 86, 'Volver', '#6a4a36', false, A_BACK);
+    botonSalida(W / 2 + 480, 260);
   } else {
     uiButton(W / 2 - 600, 920, 420, 86, 'Calibrar (3 rep.)', '#0f8f8a', true, A_BTN);
     uiButton(W / 2 - 160, 920, 420, 86, 'Rápida (1 rep.)', '#a83fb5', false, A_BTN + 1);
-    uiButton(W / 2 + 300, 920, 300, 86, 'Volver', '#6a4a36', false, A_BACK);
+    botonSalida(W / 2 + 300, 300);
   }
   if (simT - MOT.tError < 4) tag(MOT.error, W / 2, 1040, F_S, '#a8322f', C.cream, TH_S);
   else hint(MOT.fuente === 'simulada' ? (MOT.calibrado ? 'FUENTE SIMULADA: usa las flechas para que el paciente simulado se mueva' : 'FUENTE SIMULADA: el motor reproduce sEMG real del movimiento que se pide')
     : MOT.errorFuente ? MOT.errorFuente : 'Espacio: calibrar    Esc: cancelar o volver');
 }
+let calibDestino = SC_CONFIG;   // a dónde se sigue al salir: la preparación (flujo de juego) o la configuración
 function perfilUsable() { const p = MOT.perfil; return !!(p && MOT.sesion && p.codigo === MOT.sesion && p.estado !== 'no_existe' && p.estado !== 'incompatible'); }
+function botonSalida(x, w) {   // salir hacia el juego (con o sin señal) o de regreso a la configuración
+  if (calibDestino === SC_PREP) uiButton(x, 920, w, 86, MOT.calibrado ? 'Continuar' : 'Con teclado', MOT.calibrado ? '#2f9e44' : '#6a4a36', MOT.calibrado, A_BTN + 4);
+  else uiButton(x, 920, w, 86, 'Volver', '#6a4a36', false, A_BACK);
+}
 function updCalib(a, go, esc) {
   const c = MOT.cal;
-  if (!c.activa && (a === A_BTN + 3 || (go && perfilUsable() && a !== A_BTN && a !== A_BTN + 1))) {
+  if (MOT.on && !MOT.sesion) {   // la calibración pertenece a un paciente: primero el acceso
+    if (a === A_BTN + 5 || go) goScene(SC_LOGIN); else if (esc) goScene(calibDestino);
+    return;
+  }
+  if (!c.activa && (a === A_BTN + 4 || (go && MOT.calibrado && calibDestino === SC_PREP))) { goScene(calibDestino); return; }
+  if (!c.activa && (a === A_BTN + 3 || (go && perfilUsable() && !MOT.calibrado && a !== A_BTN && a !== A_BTN + 1))) {
     if (motorEnviar({ cmd: 'calibrar', modo: 'verificar' })) { MOT.res = null; sfxOK(); }
   } else if (!c.activa && (a === A_BTN || a === A_BTN + 1 || go)) {
     if (motorEnviar({ cmd: 'calibrar', repeticiones: a === A_BTN + 1 ? 1 : 3 })) { MOT.res = null; sfxOK(); }
   } else if (c.activa && (a === A_BTN + 2 || esc)) motorEnviar({ cmd: 'cancelar' });
-  else if (!c.activa && esc) goScene(SC_CONFIG);
+  else if (!c.activa && esc) goScene(calibDestino);
 }
 
 // ---- Sesión de paciente y eventos: el juego solo avisa; el motor registra, calcula y exporta ----
@@ -1878,6 +1904,9 @@ function motorEvento(tipo, kind, res) {
     if (exAbierto < 0) return;
     motorEnviar({ cmd: 'evento', tipo: tipo, id: exAbierto, resultado: res === 1 ? 'acierto' : res === -2 ? 'tiempo' : 'fallo',
       rt_s: EX.rt >= 0 ? Math.round(EX.rt * 1000) / 1000 : null });
+    exAbierto = -1;
+  } else if (tipo === 'interrumpir') {   // salir a mitad de un ejercicio: queda registrado como interrumpido
+    if (exAbierto >= 0) motorEnviar({ cmd: 'evento', tipo: 'ejercicio_fin', id: exAbierto, resultado: 'interrumpido', rt_s: null });
     exAbierto = -1;
   } else motorEnviar({ cmd: 'evento', tipo: tipo });
 }
@@ -2387,7 +2416,7 @@ window.WQ = {
     extV[2] = phi0() + clamp((k === 4 ? 1 : k === 3 ? -1 : 0) * CFG.imuTheta * v / CFG.thrOn, -90, 90);   // mismo umbral relativo que el EMG
     decCo = clamp(+m.coactivacion || 0, 0, 1);
   },
-  skins: SKINS, version: '0.11.0',
+  skins: SKINS, version: '0.12.0',
   telemetry: function () { return TEL.buf.slice(0, Math.min(TEL.n, TEL.cap) * TEL.w); },
   _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), dec: MOT.dec, sesion: MOT.sesion, resumen: MOT.resumen, oscW: oscW, perfil: MOT.perfil, oscSus: oscSus, env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
 };
