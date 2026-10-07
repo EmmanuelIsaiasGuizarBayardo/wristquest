@@ -21,12 +21,22 @@ param(
     [string] $PuertoSerie = "",
     [int] $PuertoMotor = 8765,
     [int] $PuertoWeb = 8000,
-    [string] $SynapVolit = (Join-Path $PSScriptRoot "..\..\SynapVolit"),
+    [string] $SynapVolit = "",   # vacío: se busca la carpeta hermana SynapVolit
     [int] $Segundos = 0  # mayor que 0: se cierra solo tras ese tiempo (para pruebas)
 )
 $ErrorActionPreference = "Stop"
 $enWindows = [System.Environment]::OSVersion.Platform -eq "Win32NT"
-$WristQuest = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+# Carpeta del script. No se usa $PSScriptRoot en el bloque param: en algunas versiones de Windows
+# PowerShell llega vacío allí y Join-Path falla. Se resuelve aquí, con respaldos.
+$aqui = $PSScriptRoot
+if (-not $aqui -and $MyInvocation.MyCommand.Path) { $aqui = Split-Path -Parent $MyInvocation.MyCommand.Path }
+if (-not $aqui -and $PSCommandPath) { $aqui = Split-Path -Parent $PSCommandPath }
+if (-not $aqui) {
+    Write-Host "No pude determinar la carpeta del script. Ejecútalo con la ruta completa: powershell -File <ruta>\iniciar_demo.ps1 -Fuente simulada" -ForegroundColor Red
+    exit 1
+}
+$WristQuest = (Resolve-Path (Join-Path $aqui "..")).Path
+if (-not $SynapVolit) { $SynapVolit = Join-Path $WristQuest "..\SynapVolit" }
 if (-not (Test-Path (Join-Path $SynapVolit "pyproject.toml"))) {
     Write-Host "No encuentro el repositorio de SynapVolit en $SynapVolit" -ForegroundColor Red
     Write-Host "Indícalo con -SynapVolit <ruta>"
@@ -102,7 +112,7 @@ try {
     }
     $url = "http://127.0.0.1:$PuertoWeb/wristquest.html?motor=ws://127.0.0.1:$PuertoMotor"
     Write-Host ""
-    if ($Fuente -eq "simulada") { Write-Host "  FUENTE SIMULADA: paciente simulado con sEMG real de GRABMyo" -ForegroundColor Yellow }
+    if ($Fuente -eq "simulada") { Write-Host "  FUENTE SIMULADA: el motor reproduce un registro del dataset (cuál: primera línea de motor.log)" -ForegroundColor Yellow }
     else { Write-Host "  BRAZALETE en $PuertoSerie" -ForegroundColor Green }
     Write-Host "  Juego: $url"
     Write-Host "  Registros: $logs"
