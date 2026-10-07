@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WristQuest: prototipo jugable v0.12</title>
+<title>WristQuest: prototipo jugable v0.12.1</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%90%B0%3C/text%3E%3C/svg%3E">
 <style>
 /* Fredoka: Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One). SIL Open Font License 1.1 */
@@ -1919,6 +1919,10 @@ const OSC_N = 400, OSC_COL = ['#3b5bdb', '#d6336c', '#0f8f8a', '#a83fb5'];
 const oscMin = [], oscMax = [], oscEsc = new Float32Array(4).fill(100), oscPico = new Float32Array(4);
 for (let c = 0; c < 4; c++) { oscMin.push(new Float32Array(OSC_N).fill(NaN)); oscMax.push(new Float32Array(OSC_N).fill(NaN)); }
 let oscW = 0, oscPausa = 0, oscDt = 10, oscT = -9, oscLote = 10, oscSus = 0, oscCuadro = 0;
+// Reproducción con búfer de fluctuación: cada cubeta tiene un índice absoluto (oscTotal cuenta las
+// recibidas) y un cursor avanza a velocidad constante, ~150 ms detrás de lo recibido. Así el trazo se
+// desplaza siempre en la misma dirección aunque los mensajes lleguen antes o después de los 100 ms.
+let oscTotal = 0, oscCursor = 0, oscTCursor = -1;
 function oscRecibir(m) {
   if (oscPausa) return;
   oscDt = m.dt_ms || 10;
@@ -1926,32 +1930,43 @@ function oscRecibir(m) {
   for (let j = 0; j < n; j++) {
     for (let c = 0; c < 4; c++) { const a = m.min[c][j], b = m.max[c][j]; oscMin[c][oscW] = a === null ? NaN : a; oscMax[c][oscW] = b === null ? NaN : b; }
     oscW = (oscW + 1) % OSC_N;
+    oscTotal++;
   }
   oscT = simT; oscLote = n;
+}
+function oscAvanzar() {   // una vez por cuadro: avance constante y corrección suave hacia el retraso objetivo
+  if (oscTCursor === simT) return;
+  const dt = oscTCursor < 0 ? 0 : simT - oscTCursor; oscTCursor = simT;
+  if (oscPausa) return;
+  oscCursor += dt * 1000 / oscDt;
+  const objetivo = oscTotal - 1.5 * oscLote;
+  oscCursor += (objetivo - oscCursor) * (Math.abs(objetivo - oscCursor) > 3 * oscLote ? 1 : 0.03);   // muy lejos: salta; cerca: se acerca sin brincos
+  if (oscCursor > oscTotal - 1) oscCursor = oscTotal - 1;   // nunca dibuja cubetas que no han llegado
 }
 function enJuego() { return scene === SC_RUN || scene === SC_LOCK || scene === SC_BREW || scene === SC_GO || scene === SC_BREWGO; }
 function oscGestion() {   // suscripción según la escena: el monitor o el juego con el motor calibrado
   const quiero = MOT.on && (scene === SC_MONITOR || (enJuego() && MOT.calibrado)) ? 1 : 0;
   if (quiero !== oscSus && (!MOT.on || motorEnviar({ cmd: 'osciloscopio', activo: !!quiero }))) oscSus = quiero;
 }
-function oscDesfase() {   // cuántas cubetas de avance continuo desde el último mensaje (0 a lote)
-  return oscPausa ? 0 : clamp((simT - oscT) * 1000 / oscDt, 0, oscLote);
-}
 function oscEscalar(c, n) {   // escala automática suave; el máximo se recalcula cada 6 cuadros
   if (oscCuadro % 6 === 0) {
     let pico = 0; const mn = oscMin[c], mx = oscMax[c];
-    for (let i = 0; i < n; i++) { const j = (oscW - 1 - i + OSC_N) % OSC_N, v = Math.max(Math.abs(mn[j]), Math.abs(mx[j])); if (v > pico) pico = v; }
+    const ultima = Math.floor(oscCursor);
+    for (let a = Math.max(0, ultima - n, oscTotal - OSC_N); a <= ultima; a++) { const j = a % OSC_N, v = Math.max(Math.abs(mn[j]), Math.abs(mx[j])); if (v > pico) pico = v; }
     oscPico[c] = pico;
   }
   oscEsc[c] += (Math.max(20, oscPico[c] * 1.15) - oscEsc[c]) * 0.08;
   return oscEsc[c];
 }
-function oscTrazo(c, x0, w, yc, alto, n, grosor) {   // las últimas n cubetas del canal c, la más nueva a la derecha
-  const g = ctx, mn = oscMin[c], mx = oscMax[c], k = alto / oscEscalar(c, n), dx = w / n, d = oscDesfase() - oscLote;
+function oscTrazo(c, x0, w, yc, alto, n, grosor) {   // n cubetas del canal c hasta el cursor, la más nueva a la derecha
+  oscAvanzar();
+  const g = ctx, mn = oscMin[c], mx = oscMax[c], k = alto / oscEscalar(c, n), dx = w / n;
+  const ultima = Math.floor(oscCursor), primera = Math.max(ultima - n, oscTotal - OSC_N);
   g.strokeStyle = OSC_COL[c]; g.lineWidth = grosor; g.beginPath();
-  for (let i = 0; i < n; i++) {
-    const j = (oscW - n + i + OSC_N) % OSC_N; if (mn[j] !== mn[j]) continue;   // NaN: hueco
-    const x = x0 + (i + d) * dx; if (x < x0) continue;
+  for (let a = primera; a <= ultima; a++) {
+    if (a < 0) continue;
+    const j = a % OSC_N; if (mn[j] !== mn[j]) continue;   // NaN: hueco
+    const x = x0 + w - (oscCursor - a) * dx; if (x < x0 || x > x0 + w) continue;
     g.moveTo(x, yc - mx[j] * k); g.lineTo(x, yc - mn[j] * k + 0.5);
   }
   g.stroke();
@@ -2416,9 +2431,9 @@ window.WQ = {
     extV[2] = phi0() + clamp((k === 4 ? 1 : k === 3 ? -1 : 0) * CFG.imuTheta * v / CFG.thrOn, -90, 90);   // mismo umbral relativo que el EMG
     decCo = clamp(+m.coactivacion || 0, 0, 1);
   },
-  skins: SKINS, version: '0.12.0',
+  skins: SKINS, version: '0.12.1',
   telemetry: function () { return TEL.buf.slice(0, Math.min(TEL.n, TEL.cap) * TEL.w); },
-  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), dec: MOT.dec, sesion: MOT.sesion, resumen: MOT.resumen, oscW: oscW, perfil: MOT.perfil, oscSus: oscSus, env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
+  _dbg: { step: function (k) { for (let i = 0; i < k; i++) { CH.px = CH.x; CH.py = CH.y; update(DT); } render(1); }, key: function (k, d) { keys[k] = d; if (d) hit[k] = 1; }, go: function (s) { enterScene(s); }, click: function (a) { clickA = a; }, motor: function () { return { on: MOT.on, fuente: MOT.fuente, activa: MOT.activa, calibrado: MOT.calibrado, fase: MOT.cal.fase, paso: MOT.cal.paso, calidad: Array.from(MOT.calidad), dec: MOT.dec, sesion: MOT.sesion, resumen: MOT.resumen, oscW: oscW, oscTotal: oscTotal, oscCursor: oscCursor, perfil: MOT.perfil, oscSus: oscSus, env: Array.from(MOT.env), act: Array.from(MOT.act), res: MOT.res }; }, music: function () { return { ready: MU.ready, mask: MU.mask, notes: MU.notes, biome: CFG.biome, cut: MU.filt ? MU.filt.frequency.value : 0 }; }, items: function (on) { itemSheet = on ? 1 : 0; }, state: function () { return { scene: scene, cur: cur, stN: stN, st: CH.st, x: CH.x, y: CH.y, pN: pN, step: step, ok: okN, fail: failN, armed: armed, ex: EX.kind, started: EX.started, run: EX.run, side: EX.side, lockRes: lockRes, flyT: flyT, finT: finT }; } }
 };
 let puenteOn = 0, puenteFuente = 0;   // fuente: 0 ninguna, 1 simulada, 2 serie (la versión publicada no tiene red)
 { const q = new URLSearchParams(location.search), u = q.get('motor') || q.get('puente'); if (u) conectarMotor(u, 1); }
