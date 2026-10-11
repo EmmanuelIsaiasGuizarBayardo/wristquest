@@ -36,7 +36,7 @@ Diseñó las pantallas y los personajes iniciales del juego a partir de la direc
      solo en 'references' de CITATION.cff; las bibliotecas y sus versiones ya
      están en pyproject.toml y uv.lock. -->
 
-La tipografía Fredoka (Copyright 2016 The Fredoka Project Authors) se integra tal cual: va incrustada en `web/wristquest.html` bajo la SIL Open Font License 1.1, cuyo texto acompaña al juego en `web/OFL-Fredoka.txt`. Los gráficos del juego se generan por código; el prototipo no incluye imágenes de terceros.
+La tipografía Fredoka (Copyright 2016 The Fredoka Project Authors) se integra tal cual: va incrustada en `web/wristquest.html` bajo la SIL Open Font License 1.1, cuyo texto acompaña al juego en `web/OFL-Fredoka.txt`. Las ilustraciones recortadas del juego (personajes, objetos, fondos y manos guía) son arte del proyecto en estilo paper cut, generado con un modelo de imágenes a partir del prompt de estilo del equipo y recortado con `tools/extraer_sprites.py`; las piezas viven en `assets/sprites/`. Los menús, la interfaz y las animaciones se generan por código.
 
 ---
 
