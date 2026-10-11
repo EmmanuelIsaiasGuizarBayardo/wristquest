@@ -24,7 +24,9 @@ from pathlib import Path
 from PIL import Image
 
 MARCAS = re.compile(r"/\*ASSETS_BEGIN\*/.*?/\*ASSETS_END\*/", re.DOTALL)
-AVISO_MB = 4.0
+AVISO_MB = 6.0
+# piezas que se dibujan grandes (capas del escenario) admiten más resolución
+MAX_ESPECIAL = {"bosque_capas": 2000, "suelo": 1400, "pinos": 1400, "caldero": 1100}
 
 
 def codificar(png: Path, max_lado: int) -> str:
@@ -51,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     if not a.html.exists():
         print(f"No existe {a.html}")
         return 2
-    activos = {p.stem: codificar(p, a.max_lado) for p in pngs}
+    activos = {p.stem: codificar(p, MAX_ESPECIAL.get(p.stem, a.max_lado)) for p in pngs}
     bloque = (
         "/*ASSETS_BEGIN*/const ASSETS = "
         + json.dumps(activos, separators=(",", ":"))
