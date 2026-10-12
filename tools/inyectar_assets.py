@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import concurrent.futures as cf
 import io
 import json
 import re
@@ -36,7 +37,7 @@ def codificar(png: Path, max_lado: int) -> str:
         r = max_lado / max(im.size)
         im = im.resize((round(im.width * r), round(im.height * r)), Image.LANCZOS)
     buf = io.BytesIO()
-    im.save(buf, "WEBP", quality=86, alpha_quality=100, method=6)
+    im.save(buf, "WEBP", quality=86, alpha_quality=100, method=4)
     return "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
@@ -53,7 +54,10 @@ def main(argv: list[str] | None = None) -> int:
     if not a.html.exists():
         print(f"No existe {a.html}")
         return 2
-    activos = {p.stem: codificar(p, MAX_ESPECIAL.get(p.stem, a.max_lado)) for p in pngs}
+    # en paralelo: con decenas de piezas en 3x, codificarlas una por una tarda minutos
+    lados = [MAX_ESPECIAL.get(p.stem, a.max_lado) for p in pngs]
+    with cf.ProcessPoolExecutor() as ex:
+        activos = dict(zip((p.stem for p in pngs), ex.map(codificar, pngs, lados), strict=True))
     bloque = (
         "/*ASSETS_BEGIN*/const ASSETS = "
         + json.dumps(activos, separators=(",", ":"))
