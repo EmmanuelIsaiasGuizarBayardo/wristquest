@@ -1,5 +1,7 @@
 # WristQuest
 
+**Demo en línea:** [https://emmanuelisaiasguizarbayardo.github.io/wristquest/](https://emmanuelisaiasguizarbayardo.github.io/wristquest/). Se juega con el teclado; la conexión con el sensor sEMG solo funciona en una computadora local, con el motor de SynapVolit.
+
 Videojuego serio de rehabilitación de muñeca controlado por sEMG para niños con PCEU.
 
 ## Estructura
