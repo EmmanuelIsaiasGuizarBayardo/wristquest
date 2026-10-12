@@ -15,6 +15,7 @@ from PIL import Image
 from scipy import ndimage as ndi
 
 F, A, B = "Fondos_WristQuest.png", "Copia_de_WristQuest__1_.png", "Copia_de_WristQuest.png"
+CU = "Cuchara.png"
 S, F1, F2 = "Suelos_WristQuest.png", "Fondos_WristQuest__1_.png", "Fondos_WristQuest__2_.png"
 # nombre: (hoja, caja, modo)  modo: "cut" quita el fondo; "rect" conserva el rectángulo opaco
 SPRITES = {
@@ -58,6 +59,7 @@ SPRITES = {
     "llave": (B, (1222, 887, 1370, 1045), "cut"),
     "libro": (B, (1420, 863, 1613, 1053), "cut"),
     "runa_chica": (B, (1640, 879, 1763, 1055), "cut"),
+    "cuchara": (CU, (0, 180, 305, 900), "cut"),  # primer cuadro: la cuchara completa
     # suelos en franjas (repetibles en horizontal)
     "suelo_tierra": (S, (0, 0, 1919, 149), "cut"),
     "suelo_pasto": (S, (0, 197, 1919, 346), "cut"),
@@ -191,17 +193,6 @@ def variantes(salida: Path) -> None:
         )
 
 
-def caldero_simple(ruta: Path) -> None:
-    """Quita lo que sobresale por encima del borde (vapor, burbujas y palo): el juego los anima por
-    código. Con un caldero que ya venga sin eso, no cambia nada."""
-    im = np.asarray(Image.open(ruta).convert("RGBA")).copy()
-    ancho = (im[..., 3] > 40).sum(axis=1)
-    borde = int(np.argmax(ancho >= 0.7 * ancho.max()))
-    im[: max(0, borde - round(0.035 * im.shape[0])), :, 3] = 0
-    out = Image.fromarray(im, "RGBA")
-    out.crop(out.getbbox()).save(ruta)
-
-
 def main(hojas: Path, salida: Path) -> None:
     """Las cajas están en coordenadas de una hoja de 1920 px; se escalan al ancho real (3x)."""
     salida.mkdir(parents=True, exist_ok=True)
@@ -221,7 +212,6 @@ def main(hojas: Path, salida: Path) -> None:
         else:
             recorte(rgba, fg, lab, caja, k, alfa_real).save(salida / f"{nombre}.png")
     variantes(salida)
-    caldero_simple(salida / "caldero.png")
     print(f"{len(SPRITES)} sprites y {len(VARIANTES)} variantes en {salida} (escala {k:g}x)")
 
 

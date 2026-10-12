@@ -1,0 +1,38 @@
+# Publica el juego en GitHub Pages cada vez que cambia web/ en main (o a mano desde Actions).
+# Requiere, una sola vez: Settings > Pages > Source: "GitHub Actions".
+name: Publicar juego en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar el sitio (el juego es un solo HTML)
+        run: |
+          mkdir -p _sitio
+          cp web/wristquest.html _sitio/index.html
+          if [ -f web/OFL-Fredoka.txt ]; then cp web/OFL-Fredoka.txt _sitio/; fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _sitio
+      - id: despliegue
+        uses: actions/deploy-pages@v4
