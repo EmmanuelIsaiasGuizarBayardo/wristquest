@@ -15,6 +15,7 @@ from PIL import Image
 from scipy import ndimage as ndi
 
 F, A, B = "Fondos_WristQuest.png", "Copia_de_WristQuest__1_.png", "Copia_de_WristQuest.png"
+S, F1, F2 = "Suelos_WristQuest.png", "Fondos_WristQuest__1_.png", "Fondos_WristQuest__2_.png"
 # nombre: (hoja, caja, modo)  modo: "cut" quita el fondo; "rect" conserva el rectángulo opaco
 SPRITES = {
     "pinos": (F, (119, 30, 419, 381), "cut"),
@@ -57,6 +58,44 @@ SPRITES = {
     "llave": (B, (1222, 887, 1370, 1045), "cut"),
     "libro": (B, (1420, 863, 1613, 1053), "cut"),
     "runa_chica": (B, (1640, 879, 1763, 1055), "cut"),
+    # suelos en franjas (repetibles en horizontal)
+    "suelo_tierra": (S, (0, 0, 1919, 149), "cut"),
+    "suelo_pasto": (S, (0, 197, 1919, 346), "cut"),
+    "suelo_rocas": (S, (0, 367, 1919, 515), "cut"),
+    "suelo_muro": (S, (0, 525, 1919, 727), "cut"),
+    "suelo_pradera": (S, (0, 738, 1919, 884), "cut"),
+    "suelo_seco": (S, (0, 931, 1919, 1079), "cut"),
+    # vegetación
+    "arbol_rosa": (F1, (6, 25, 284, 329), "cut"),
+    "arbol_musgo": (F1, (332, 19, 605, 329), "cut"),
+    "arboles_altos": (F1, (651, 6, 1027, 345), "cut"),
+    "arbol_burbujas": (F1, (1066, 7, 1259, 347), "cut"),
+    "plantas_magicas": (F1, (1307, 24, 1589, 330), "cut"),
+    "hongos_rojos": (F1, (1631, 17, 1914, 341), "cut"),
+    "arboles_otono": (F1, (664, 371, 1581, 702), "cut"),
+    "hongo_grande": (F1, (1638, 368, 1905, 697), "cut"),
+    "liana_grande": (F1, (11, 389, 605, 696), "cut"),
+    "liana_lazo": (F1, (4, 731, 317, 912), "cut"),
+    "arbol_acacia": (F1, (327, 756, 648, 1038), "cut"),
+    "pinos_grupo": (F1, (653, 731, 1260, 1064), "cut"),
+    "hongos_espiral": (F1, (1303, 728, 1498, 1063), "cut"),
+    "hongos_naranja": (F1, (1569, 729, 1905, 1065), "cut"),
+    "liana_hojas": (F1, (1, 937, 323, 1075), "cut"),
+    # cielo, casas y relieve
+    "nube_azul": (F2, (12, 10, 373, 180), "cut"),
+    "casa_hongo_rosa": (F2, (424, 10, 727, 342), "cut"),
+    "montana": (F2, (747, 42, 1257, 342), "cut"),
+    "roca_gris": (F2, (1273, 7, 1588, 335), "cut"),
+    "roca_naranja": (F2, (1598, 6, 1910, 346), "cut"),
+    "nube_clara": (F2, (4, 209, 392, 343), "cut"),
+    "casa_hongo": (F2, (624, 367, 1008, 701), "cut"),
+    "nube_rosa": (F2, (6, 425, 604, 648), "cut"),
+    "cordillera": (F2, (1033, 399, 1918, 678), "cut"),
+    "estanque": (F2, (5, 796, 433, 1001), "cut"),
+    "casa_hongo_naranja": (F2, (446, 730, 746, 1066), "cut"),
+    "casa_arbol": (F2, (761, 727, 1086, 1065), "cut"),
+    "casa_tocon": (F2, (1104, 733, 1560, 1052), "cut"),
+    "casa_arbol2": (F2, (1585, 725, 1912, 1068), "cut"),
 }
 
 
@@ -152,6 +191,17 @@ def variantes(salida: Path) -> None:
         )
 
 
+def caldero_simple(ruta: Path) -> None:
+    """Quita lo que sobresale por encima del borde (vapor, burbujas y palo): el juego los anima por
+    código. Con un caldero que ya venga sin eso, no cambia nada."""
+    im = np.asarray(Image.open(ruta).convert("RGBA")).copy()
+    ancho = (im[..., 3] > 40).sum(axis=1)
+    borde = int(np.argmax(ancho >= 0.7 * ancho.max()))
+    im[: max(0, borde - round(0.035 * im.shape[0])), :, 3] = 0
+    out = Image.fromarray(im, "RGBA")
+    out.crop(out.getbbox()).save(ruta)
+
+
 def main(hojas: Path, salida: Path) -> None:
     """Las cajas están en coordenadas de una hoja de 1920 px; se escalan al ancho real (3x)."""
     salida.mkdir(parents=True, exist_ok=True)
@@ -171,6 +221,7 @@ def main(hojas: Path, salida: Path) -> None:
         else:
             recorte(rgba, fg, lab, caja, k, alfa_real).save(salida / f"{nombre}.png")
     variantes(salida)
+    caldero_simple(salida / "caldero.png")
     print(f"{len(SPRITES)} sprites y {len(VARIANTES)} variantes en {salida} (escala {k:g}x)")
 
 

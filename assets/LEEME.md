@@ -15,10 +15,12 @@ convierte a WebP y las incrusta en `web/wristquest.html`; el chat de desarrollo 
 |---|---|
 | Personajes jugables | `pers_conejo` y sus variantes por zona `pers_conejo_nieve` y `pers_conejo_canela` (generadas por `tools/extraer_sprites.py`), `pers_rana`, `pers_mapache`, `pers_castor` |
 | Clientes | `oso`, `ardilla`, `pers_jabali`, `buho` |
-| Ingredientes y objetos | `cristal`, `mortero`, `roca_runica`, `pocion_azul`, `pocion_verde`, `llave`, `cofre`, `caldero` |
+| Ingredientes y objetos | `cristal`, `mortero`, `roca_runica`, `pocion_azul`, `pocion_verde`, `llave`, `cofre`, `caldero` (sin vapor ni palo: el juego detecta su boca y anima palo, burbujas, gas y estrella) |
 | Menús | `pocion_lava`, `pocion_vid`, `pocion_corazon` (principal); `pocion_verde`, `pocion_gema`, `pocion_hongo`, `pocion_h` (dificultad) |
 | Mano guía | `mano_flexion`, `mano_extension`, `mano_dorso`, `mano_palma`, `brazo_giro` |
-| Escenario | `pinos`, `bosque_capas`, `suelo` |
+| Escenario (noche y claro soleado) | `pinos`, `bosque_capas`, `suelo` |
+| Escenarios Casa del árbol, Río y montañas, Aldea de hongos | Suelos `suelo_pasto`, `suelo_rocas`, `suelo_pradera` (también `suelo_tierra`, `suelo_muro`, `suelo_seco`); lejanía `cordillera`; recortes `casa_arbol`, `casa_arbol2`, `casa_tocon`, `casa_hongo`, `casa_hongo_rosa`, `casa_hongo_naranja`, `arbol_rosa`, `arbol_musgo`, `arbol_acacia`, `arbol_burbujas`, `arboles_otono`, `arboles_altos`, `pinos_grupo`, `hongos_rojos`, `hongo_grande`, `hongos_espiral`, `hongos_naranja`, `plantas_magicas`, `roca_gris`, `roca_naranja`, `montana`, `estanque`; nubes `nube_clara`, `nube_azul`, `nube_rosa` |
+| Sin usar todavía | `liana_grande`, `liana_lazo`, `liana_hojas` |
 | Miniaturas de escenarios | `esc_noche`, `esc_sol`, `esc_casa`, `esc_rio`, `esc_hongo` |
 | Aún sin usar | `cadenas`, `avatar`, `carton`, `libro`, `runa_chica`, `esc_selva` (no se extrajo) |
 
