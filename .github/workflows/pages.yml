@@ -30,6 +30,7 @@ jobs:
           mkdir -p _sitio
           cp web/wristquest.html _sitio/index.html
           if [ -f web/OFL-Fredoka.txt ]; then cp web/OFL-Fredoka.txt _sitio/; fi
+          if [ -f web/og-image.jpg ]; then cp web/og-image.jpg _sitio/; fi   # imagen de vista previa (Open Graph)
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
